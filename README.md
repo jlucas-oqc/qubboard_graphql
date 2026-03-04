@@ -301,7 +301,7 @@ The REST API is available at `/rest`. Interactive OpenAPI docs are served at `/d
 
 | Method | Path                            | Description                                        |
 |--------|---------------------------------|----------------------------------------------------|
-| `GET`  | `/rest/healthcheck`             | Health check – returns `OK`                        |
+| `GET`  | `/healthcheck`                  | Health check – returns `OK`                        |
 | `GET`  | `/rest/logical-hardware`        | List all hardware model UUIDs                      |
 | `GET`  | `/rest/logical-hardware/{uuid}` | Fetch a hardware model by UUID                     |
 | `POST` | `/rest/logical-hardware`        | Create a hardware model from a JSON body           |

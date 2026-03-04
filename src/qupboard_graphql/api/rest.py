@@ -2,7 +2,6 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
 from sqlalchemy.orm import Session
-from starlette.responses import Response
 
 from qupboard_graphql.db.mapper import hardware_model_from_orm, hardware_model_to_orm
 from qupboard_graphql.db.models import HardwareModelORM
@@ -11,12 +10,6 @@ from qupboard_graphql.schemas.hardware_model import HardwareModel
 
 
 rest_router = APIRouter(tags=["Hardware Models"])
-
-
-@rest_router.get("/healthcheck", tags=["Health"], summary="Health check")
-async def healthcheck() -> Response:
-    """Return a simple OK response to confirm the service is running."""
-    return Response("OK")
 
 
 @rest_router.get(
