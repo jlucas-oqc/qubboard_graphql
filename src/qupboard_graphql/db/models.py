@@ -10,9 +10,8 @@ hardware_models
        │    └─ iq_voltage_biases     (FK → physical_channels)
        ├─ qubit_pulse_channels       (drive / second_state / freq_shift)
        │    └─ calibratable_pulses   (FK → qubit_pulse_channels)
-       ├─ cross_resonance_channels   (FK → qubits)
-       │    └─ calibratable_pulses
-       ├─ cross_resonance_cancellation_channels (FK → qubits)
+       ├─ cross_resonance_channels   (FK → qubits, role = 'cr' | 'crc')
+       │    └─ calibratable_pulses   (role='cr' rows only)
        └─ resonators                (FK → qubits)
             ├─ physical_channels    (channel_kind='resonator', FK → resonators)
             └─ resonator_pulse_channels
@@ -282,14 +281,21 @@ class QubitPulseChannelsORM(Base):
 
 
 # ---------------------------------------------------------------------------
-# CrossResonanceChannel
+# CrossResonanceChannel  (unified – CR and CRC, discriminated by role)
 # ---------------------------------------------------------------------------
 
 
 class CrossResonanceChannelORM(Base):
+    """Covers both CrossResonancePulseChannel and CrossResonanceCancellationPulseChannel.
+
+    role: 'cr' | 'crc'
+    zx_pi_4_pulse is only populated when role == 'cr'.
+    """
+
     __tablename__ = "cross_resonance_channels"
 
     uuid: Mapped[UUID] = mapped_column(primary_key=True)
+    role: Mapped[str] = mapped_column(String, nullable=False)  # 'cr' | 'crc'
     auxiliary_qubit: Mapped[int] = mapped_column(Integer, nullable=False)
     frequency: Mapped[float | None] = mapped_column(Float, nullable=True, default=None)
     imbalance: Mapped[float] = mapped_column(Float, default=1.0)
@@ -298,7 +304,10 @@ class CrossResonanceChannelORM(Base):
     scale_imag: Mapped[float] = mapped_column(Float, default=0.0)
 
     qubit_uuid: Mapped[UUID | None] = mapped_column(ForeignKey("qubits.uuid"), nullable=True)
-    qubit: Mapped["QubitORM | None"] = relationship(back_populates="cross_resonance_channels")
+    qubit: Mapped["QubitORM | None"] = relationship(
+        foreign_keys=[qubit_uuid],
+        overlaps="cross_resonance_channels,cross_resonance_cancellation_channels",
+    )
 
     zx_pi_4_pulse: Mapped["CalibratablePulseORM | None"] = relationship(
         back_populates="cr_channel",
@@ -306,26 +315,6 @@ class CrossResonanceChannelORM(Base):
         cascade="all, delete-orphan",
         uselist=False,
     )
-
-
-# ---------------------------------------------------------------------------
-# CrossResonanceCancellationChannel
-# ---------------------------------------------------------------------------
-
-
-class CrossResonanceCancellationChannelORM(Base):
-    __tablename__ = "cross_resonance_cancellation_channels"
-
-    uuid: Mapped[UUID] = mapped_column(primary_key=True)
-    auxiliary_qubit: Mapped[int] = mapped_column(Integer, nullable=False)
-    frequency: Mapped[float | None] = mapped_column(Float, nullable=True, default=None)
-    imbalance: Mapped[float] = mapped_column(Float, default=1.0)
-    phase_iq_offset: Mapped[float] = mapped_column(Float, default=0.0)
-    scale_real: Mapped[float] = mapped_column(Float, default=1.0)
-    scale_imag: Mapped[float] = mapped_column(Float, default=0.0)
-
-    qubit_uuid: Mapped[UUID | None] = mapped_column(ForeignKey("qubits.uuid"), nullable=True)
-    qubit: Mapped["QubitORM | None"] = relationship(back_populates="cross_resonance_cancellation_channels")
 
 
 # ---------------------------------------------------------------------------
@@ -481,8 +470,20 @@ class QubitORM(Base):
         back_populates="qubit", cascade="all, delete-orphan", uselist=False
     )
     cross_resonance_channels: Mapped[list["CrossResonanceChannelORM"]] = relationship(
-        back_populates="qubit", cascade="all, delete-orphan"
+        cascade="all, delete-orphan",
+        primaryjoin=(
+            "and_(CrossResonanceChannelORM.qubit_uuid == QubitORM.uuid, CrossResonanceChannelORM.role == 'cr')"
+        ),
+        foreign_keys="CrossResonanceChannelORM.qubit_uuid",
+        viewonly=False,
+        overlaps="cross_resonance_cancellation_channels,qubit",
     )
-    cross_resonance_cancellation_channels: Mapped[list["CrossResonanceCancellationChannelORM"]] = relationship(
-        back_populates="qubit", cascade="all, delete-orphan"
+    cross_resonance_cancellation_channels: Mapped[list["CrossResonanceChannelORM"]] = relationship(
+        cascade="all, delete-orphan",
+        primaryjoin=(
+            "and_(CrossResonanceChannelORM.qubit_uuid == QubitORM.uuid, CrossResonanceChannelORM.role == 'crc')"
+        ),
+        foreign_keys="CrossResonanceChannelORM.qubit_uuid",
+        viewonly=False,
+        overlaps="cross_resonance_channels,qubit",
     )

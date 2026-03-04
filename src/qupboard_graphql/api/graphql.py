@@ -16,7 +16,6 @@ from qupboard_graphql.db.models import (
     BaseBandORM,
     CalibratableAcquireORM,
     CalibratablePulseORM,
-    CrossResonanceCancellationChannelORM,
     CrossResonanceChannelORM,
     DrivePulseChannelORM,
     HardwareModelORM,
@@ -79,11 +78,6 @@ class QubitPulseChannels:
 
 @mapper.type(CrossResonanceChannelORM)
 class CrossResonanceChannel:
-    __exclude__ = ["qubit"]
-
-
-@mapper.type(CrossResonanceCancellationChannelORM)
-class CrossResonanceCancellationChannel:
     __exclude__ = ["qubit"]
 
 

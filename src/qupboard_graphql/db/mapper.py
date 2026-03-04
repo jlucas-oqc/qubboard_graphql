@@ -29,7 +29,6 @@ from qupboard_graphql.db.models import (
     BaseBandORM,
     CalibratableAcquireORM,
     CalibratablePulseORM,
-    CrossResonanceCancellationChannelORM,
     CrossResonanceChannelORM,
     DrivePulseChannelORM,
     HardwareModelORM,
@@ -166,7 +165,7 @@ def _qubit_pulse_channels_orm(
 ) -> tuple[
     QubitPulseChannelsORM,
     list[CrossResonanceChannelORM],
-    list[CrossResonanceCancellationChannelORM],
+    list[CrossResonanceChannelORM],
 ]:
     drive = qubit_pulse_channels.drive
     drive_orm = DrivePulseChannelORM(
@@ -216,6 +215,7 @@ def _qubit_pulse_channels_orm(
         cr_orms.append(
             CrossResonanceChannelORM(
                 uuid=cr.uuid,
+                role="cr",
                 auxiliary_qubit=cr.auxiliary_qubit,
                 frequency=cr.frequency,
                 imbalance=cr.imbalance,
@@ -226,12 +226,13 @@ def _qubit_pulse_channels_orm(
             )
         )
 
-    crc_orms: list[CrossResonanceCancellationChannelORM] = []
+    crc_orms: list[CrossResonanceChannelORM] = []
     for aux_idx, crc in cross_resonance_cancellation.items():
         crc_real, crc_imag = _scale_parts(crc.scale)
         crc_orms.append(
-            CrossResonanceCancellationChannelORM(
+            CrossResonanceChannelORM(
                 uuid=crc.uuid,
+                role="crc",
                 auxiliary_qubit=crc.auxiliary_qubit,
                 frequency=crc.frequency,
                 imbalance=crc.imbalance,

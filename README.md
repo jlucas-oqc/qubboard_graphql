@@ -149,7 +149,7 @@ The GraphQL API is available at `/graphql`. An interactive GraphiQL IDE is serve
 
 ```graphql
 {
-  getCalibration(id: "46887a09-970b-4149-a633-d4a3a511e070") {
+  getCalibration(id: "339bf773-ac5a-4b72-8efb-b4cc4275f074") {
     id
     version
     calibrationId
@@ -396,18 +396,14 @@ The database schema mirrors the `HardwareModel` Pydantic schema and is defined a
 ```
 hardware_models
 └── qubits
-    ├── physical_channels
+    ├── physical_channels               (channel_kind = 'qubit' | 'resonator')
     │   ├── basebands
     │   └── iq_voltage_biases
     ├── qubit_pulse_channels
     │   └── calibratable_pulses
-    ├── cross_resonance_channels
-    │   └── calibratable_pulses
-    ├── cross_resonance_cancellation_channels
+    ├── cross_resonance_channels        (role = 'cr' | 'crc')
+    │   └── calibratable_pulses         (role='cr' rows only)
     └── resonators
-        ├── resonator_physical_channels
-        │   ├── basebands
-        │   └── iq_voltage_biases
         └── resonator_pulse_channels
             ├── measure_pulse_channels  +  calibratable_pulse
             └── acquire_pulse_channels  +  calibratable_acquire
