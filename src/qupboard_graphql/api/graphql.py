@@ -14,14 +14,10 @@ from strawberry_sqlalchemy_mapper import (
 from qupboard_graphql.db.models import (
     CalibratablePulseORM,
     CrossResonanceChannelORM,
-    DrivePulseChannelORM,
     HardwareModelORM,
     PhysicalChannelORM,
+    PulseChannelORM,
     QubitORM,
-    QubitPulseChannelORM,
-    ResonatorORM,
-    ResonatorPulseChannelORM,
-    ResetPulseChannelORM,
     ZxPi4CompORM,
 )
 from qupboard_graphql.db.session import get_db
@@ -34,7 +30,7 @@ mapper = StrawberrySQLAlchemyMapper(
 
 @mapper.type(PhysicalChannelORM)
 class PhysicalChannel:
-    __exclude__ = ["qubit", "resonator"]
+    __exclude__ = ["qubit"]
 
 
 @mapper.type(CalibratablePulseORM)
@@ -42,14 +38,9 @@ class CalibratablePulse:
     __exclude__ = []
 
 
-@mapper.type(DrivePulseChannelORM)
-class DrivePulseChannel:
-    __exclude__ = ["qubit"]
-
-
-@mapper.type(QubitPulseChannelORM)
-class QubitPulseChannel:
-    __exclude__ = ["qubit"]
+@mapper.type(PulseChannelORM)
+class PulseChannel:
+    __exclude__ = []
 
 
 @mapper.type(CrossResonanceChannelORM)
@@ -57,23 +48,8 @@ class CrossResonanceChannel:
     __exclude__ = ["qubit"]
 
 
-@mapper.type(ResonatorPulseChannelORM)
-class ResonatorPulseChannel:
-    __exclude__ = ["resonator"]
-
-
-@mapper.type(ResetPulseChannelORM)
-class ResetPulseChannel:
-    __exclude__ = ["qubit", "resonator"]
-
-
 @mapper.type(ZxPi4CompORM)
 class ZxPi4Comp:
-    __exclude__ = ["qubit"]
-
-
-@mapper.type(ResonatorORM)
-class Resonator:
     __exclude__ = ["qubit"]
 
 

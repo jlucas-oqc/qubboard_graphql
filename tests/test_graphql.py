@@ -7,9 +7,6 @@ def test_get_calibration(test_client: TestClient, hardware_model_uuid: str):
     """
     Test that we can retrieve a hardware model calibration by its UUID and that the returned data matches what we
     expect.
-    :param test_client: fixture providing a TestClient instance for making requests to the API
-    :param hardware_model_uuid: fixture that creates a hardware model and returns its UUID
-    :return:
     """
     query = """
         query GetCalibration($id: UUID!) {
@@ -27,107 +24,62 @@ def test_get_calibration(test_client: TestClient, hardware_model_uuid: str):
                             discriminatorReal
                             discriminatorImag
                             directXPi
-                            physicalChannel {
-                                uuid
-                                channelKind
-                                nameIndex
-                                blockSize
-                                defaultAmplitude
-                                switchBox
-                                swapReadoutIq
-                                basebandUuid
-                                basebandFrequency
-                                basebandIfFrequency
-                                iqBias
-                            }
-                            drivePulseChannel {
-                                uuid
-                                frequency
-                                imbalance
-                                phaseIqOffset
-                                scaleReal
-                                scaleImag
-                                pulse {
-                                    id
-                                    waveformType
-                                    width
-                                    amp
-                                    phase
-                                    drag
-                                    rise
-                                    ampSetup
-                                    stdDev
-                                }
-                                pulseXPi {
-                                    id
-                                    waveformType
-                                    width
-                                    amp
-                                    phase
-                                    drag
-                                    rise
-                                    ampSetup
-                                    stdDev
+                            phaseCompXPi2
+                            resUuid
+                            physicalChannels {
+                                edges {
+                                    node {
+                                        uuid
+                                        channelKind
+                                        nameIndex
+                                        blockSize
+                                        defaultAmplitude
+                                        switchBox
+                                        swapReadoutIq
+                                        basebandUuid
+                                        basebandFrequency
+                                        basebandIfFrequency
+                                        iqBias
+                                    }
                                 }
                             }
-                            secondStatePulseChannel {
-                                uuid
-                                role
-                                frequency
-                                imbalance
-                                phaseIqOffset
-                                scaleReal
-                                scaleImag
-                                ssActive
-                                ssDelay
-                                fsActive
-                                fsAmp
-                                fsPhase
-                                pulse {
-                                    id
-                                    waveformType
-                                    width
-                                    amp
-                                    phase
-                                    drag
-                                    rise
-                                    ampSetup
-                                    stdDev
-                                }
-                            }
-                            freqShiftPulseChannel {
-                                uuid
-                                role
-                                frequency
-                                imbalance
-                                phaseIqOffset
-                                scaleReal
-                                scaleImag
-                                ssActive
-                                ssDelay
-                                fsActive
-                                fsAmp
-                                fsPhase
-                            }
-                            resetPulseChannel {
-                                uuid
-                                resetKind
-                                frequency
-                                imbalance
-                                phaseIqOffset
-                                scaleReal
-                                scaleImag
-                                delay
-                                pulse {
-                                    id
-                                    waveformType
-                                    width
-                                    amp
-                                    phase
-                                    drag
-                                    rise
-                                    ampSetup
-                                    stdDev
+                            pulseChannels {
+                                edges {
+                                    node {
+                                        uuid
+                                        channelRole
+                                        frequency
+                                        imbalance
+                                        phaseIqOffset
+                                        scaleReal
+                                        scaleImag
+                                        ssActive
+                                        ssDelay
+                                        fsActive
+                                        fsAmp
+                                        fsPhase
+                                        acqDelay
+                                        acqWidth
+                                        acqSync
+                                        acqUseWeights
+                                        resetDelay
+                                        pulse {
+                                            id
+                                            waveformType
+                                            width
+                                            amp
+                                            phase
+                                            drag
+                                            rise
+                                            ampSetup
+                                            stdDev
+                                        }
+                                        pulseXPi {
+                                            id
+                                            waveformType
+                                            width
+                                        }
+                                    }
                                 }
                             }
                             crossResonanceChannels {
@@ -145,12 +97,6 @@ def test_get_calibration(test_client: TestClient, hardware_model_uuid: str):
                                             id
                                             waveformType
                                             width
-                                            amp
-                                            phase
-                                            drag
-                                            rise
-                                            ampSetup
-                                            stdDev
                                         }
                                     }
                                 }
@@ -169,77 +115,6 @@ def test_get_calibration(test_client: TestClient, hardware_model_uuid: str):
                                     }
                                 }
                             }
-                            resonator {
-                                uuid
-                                physicalChannel {
-                                    uuid
-                                    channelKind
-                                    nameIndex
-                                    blockSize
-                                    defaultAmplitude
-                                    switchBox
-                                    swapReadoutIq
-                                    basebandUuid
-                                    basebandFrequency
-                                    basebandIfFrequency
-                                    iqBias
-                                }
-                                measurePulseChannel {
-                                    uuid
-                                    role
-                                    frequency
-                                    imbalance
-                                    phaseIqOffset
-                                    scaleReal
-                                    scaleImag
-                                    pulse {
-                                        id
-                                        waveformType
-                                        width
-                                        amp
-                                        phase
-                                        drag
-                                        rise
-                                        ampSetup
-                                        stdDev
-                                    }
-                                }
-                                acquirePulseChannel {
-                                    uuid
-                                    role
-                                    frequency
-                                    imbalance
-                                    phaseIqOffset
-                                    scaleReal
-                                    scaleImag
-                                    acqDelay
-                                    acqWidth
-                                    acqSync
-                                    acqUseWeights
-                                }
-                                resetPulseChannel {
-                                    uuid
-                                    resetKind
-                                    frequency
-                                    imbalance
-                                    phaseIqOffset
-                                    scaleReal
-                                    scaleImag
-                                    delay
-                                    pulse {
-                                        id
-                                        waveformType
-                                        width
-                                        amp
-                                        phase
-                                        drag
-                                        rise
-                                        ampSetup
-                                        stdDev
-                                    }
-                                }
-                            }
-                            phaseCompXPi2
                             zxPi4Comps {
                                 edges {
                                     node {
@@ -255,23 +130,11 @@ def test_get_calibration(test_client: TestClient, hardware_model_uuid: str):
                                             id
                                             waveformType
                                             width
-                                            amp
-                                            phase
-                                            drag
-                                            rise
-                                            ampSetup
-                                            stdDev
                                         }
                                         pulsePostcomp {
                                             id
                                             waveformType
                                             width
-                                            amp
-                                            phase
-                                            drag
-                                            rise
-                                            ampSetup
-                                            stdDev
                                         }
                                     }
                                 }
@@ -296,36 +159,40 @@ def test_get_calibration(test_client: TestClient, hardware_model_uuid: str):
     assert calibration is not None
     assert calibration["id"] == hardware_model_uuid
 
-    # Spot-check structure is populated
     qubit_nodes = calibration["qubits"]["edges"]
     assert len(qubit_nodes) > 0
 
     first_qubit = qubit_nodes[0]["node"]
-    drive = first_qubit["drivePulseChannel"]
+
+    channels_by_role = {n["node"]["channelRole"]: n["node"] for n in first_qubit["pulseChannels"]["edges"]}
+
+    drive = channels_by_role["drive"]
     assert drive["frequency"] is not None
     assert drive["pulse"] is not None
 
-    second_state = first_qubit["secondStatePulseChannel"]
+    second_state = channels_by_role["second_state"]
     assert second_state["pulse"] is not None
 
-    qubit_reset = first_qubit["resetPulseChannel"]
-    assert qubit_reset["resetKind"] == "qubit"
-    assert qubit_reset["pulse"] is not None
+    reset_qubit = channels_by_role["reset_qubit"]
+    assert reset_qubit["pulse"] is not None
 
-    resonator_reset = first_qubit["resonator"]["resetPulseChannel"]
-    assert resonator_reset["resetKind"] == "resonator"
-    assert resonator_reset["pulse"] is not None
+    reset_resonator = channels_by_role["reset_resonator"]
+    assert reset_resonator["pulse"] is not None
 
     assert first_qubit["phaseCompXPi2"] is not None
+    assert first_qubit["resUuid"] is not None
     assert len(first_qubit["zxPi4Comps"]["edges"]) > 0
+
+    # Both physical channels (qubit + resonator) should be present
+    pc_nodes = first_qubit["physicalChannels"]["edges"]
+    assert len(pc_nodes) == 2
+    pc_kinds = {n["node"]["channelKind"] for n in pc_nodes}
+    assert pc_kinds == {"qubit", "resonator"}
 
 
 def test_get_all_hardware_model_ids(test_client: TestClient, hardware_model_uuid: str):
     """
     Test that we can retrieve a list of all hardware model UUIDs and that it contains the UUID of the model we created.
-    :param test_client: fixture providing a TestClient instance for making requests to the API
-    :param hardware_model_uuid: fixture that creates a hardware model and returns its UUID
-    :return:
     """
     query = """
         query {
