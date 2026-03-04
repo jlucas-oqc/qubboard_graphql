@@ -190,6 +190,38 @@ def test_get_calibration(test_client: TestClient, hardware_model_uuid: str):
     assert pc_kinds == {"qubit", "resonator"}
 
 
+def test_get_all_calibrations(test_client: TestClient, hardware_model_uuid: str):
+    """
+    Test that get_all_calibrations returns a list of calibrations, each with an id and calibrationId,
+    and that the seeded calibration is present.
+    """
+    query = """
+        query {
+            getAllCalibrations {
+                id
+                calibrationId
+            }
+        }
+    """
+    response = test_client.post(_GRAPHQL_URL, json={"query": query})
+
+    assert response.status_code == 200
+    data = response.json()
+    assert "errors" not in data, f"GraphQL errors: {data.get('errors')}"
+    calibrations = data["data"]["getAllCalibrations"]
+    assert isinstance(calibrations, list)
+    assert len(calibrations) > 0
+
+    ids = [c["id"] for c in calibrations]
+    assert hardware_model_uuid in ids
+
+    for calibration in calibrations:
+        assert "id" in calibration
+        assert "calibrationId" in calibration
+        assert calibration["id"] is not None
+        assert calibration["calibrationId"] is not None
+
+
 def test_get_all_hardware_model_ids(test_client: TestClient, hardware_model_uuid: str):
     """
     Test that we can retrieve a list of all hardware model UUIDs and that it contains the UUID of the model we created.

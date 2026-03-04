@@ -86,6 +86,11 @@ class Query:
         db = info.context["db"]
         return HardwareModelORM.get_all_pks(db)
 
+    @strawberry.field
+    def get_all_calibrations(self, info: strawberry.types.Info) -> list[HardwareModel]:
+        db = info.context["db"]
+        return db.query(HardwareModelORM).all()
+
 
 schema = strawberry.Schema(Query)
 
