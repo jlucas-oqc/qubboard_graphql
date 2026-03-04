@@ -11,7 +11,8 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from qupboard_graphql.db.mapper import hardware_model_from_orm, hardware_model_to_orm
+from qupboard_graphql.db.mapper_from_orm import hardware_model_from_orm
+from qupboard_graphql.db.mapper_to_orm import hardware_model_to_orm
 from qupboard_graphql.db.models import HardwareModelORM
 from qupboard_graphql.db.session import get_db
 from qupboard_graphql.schemas.hardware_model import HardwareModel
