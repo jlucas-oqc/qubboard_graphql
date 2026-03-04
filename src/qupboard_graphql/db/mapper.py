@@ -25,7 +25,6 @@ from qupboard_graphql.schemas.hardware_model import (
     SecondStatePulseChannel,
 )
 from qupboard_graphql.db.models import (
-    AcquirePulseChannelORM,
     BaseBandORM,
     CalibratableAcquireORM,
     CalibratablePulseORM,
@@ -33,12 +32,12 @@ from qupboard_graphql.db.models import (
     DrivePulseChannelORM,
     HardwareModelORM,
     IQVoltageBiasORM,
-    MeasurePulseChannelORM,
     PhysicalChannelORM,
     QubitORM,
     QubitPulseChannelORM,
     QubitPulseChannelsORM,
     ResonatorORM,
+    ResonatorPulseChannelORM,
     ResonatorPulseChannelsORM,
 )
 
@@ -123,10 +122,11 @@ def _nan_to_none(value: float) -> float | None:
         return value
 
 
-def _measure_pulse_channel_orm(mpc: MeasurePulseChannel) -> MeasurePulseChannelORM:
+def _measure_pulse_channel_orm(mpc: MeasurePulseChannel) -> ResonatorPulseChannelORM:
     real, imag = _scale_parts(mpc.scale)
-    return MeasurePulseChannelORM(
+    return ResonatorPulseChannelORM(
         uuid=mpc.uuid,
+        role="measure",
         frequency=mpc.frequency,
         imbalance=mpc.imbalance,
         phase_iq_offset=mpc.phase_iq_offset,
@@ -136,24 +136,28 @@ def _measure_pulse_channel_orm(mpc: MeasurePulseChannel) -> MeasurePulseChannelO
     )
 
 
+def _acquire_pulse_channel_orm(apc: AcquirePulseChannel) -> ResonatorPulseChannelORM:
+    real, imag = _scale_parts(apc.scale)
+    return ResonatorPulseChannelORM(
+        uuid=apc.uuid,
+        role="acquire",
+        frequency=apc.frequency,
+        imbalance=apc.imbalance,
+        phase_iq_offset=apc.phase_iq_offset,
+        scale_real=real,
+        scale_imag=imag,
+        acquire=_acquire_orm(apc.acquire),
+    )
+
+
 def _resonator_orm(resonator: Resonator) -> ResonatorORM:
-    acquire_pc = resonator.pulse_channels.acquire
-    acquire_real, acquire_imag = _scale_parts(acquire_pc.scale)
     return ResonatorORM(
         uuid=resonator.uuid,
         physical_channel=_resonator_physical_channel_orm(resonator.physical_channel),
         pulse_channels=ResonatorPulseChannelsORM(
             uuid=resonator.pulse_channels.acquire.uuid,  # reuse one UUID for container
             measure=_measure_pulse_channel_orm(resonator.pulse_channels.measure),
-            acquire=AcquirePulseChannelORM(
-                uuid=acquire_pc.uuid,
-                frequency=acquire_pc.frequency,
-                imbalance=acquire_pc.imbalance,
-                phase_iq_offset=acquire_pc.phase_iq_offset,
-                scale_real=acquire_real,
-                scale_imag=acquire_imag,
-                acquire=_acquire_orm(acquire_pc.acquire),
-            ),
+            acquire=_acquire_pulse_channel_orm(resonator.pulse_channels.acquire),
         ),
     )
 

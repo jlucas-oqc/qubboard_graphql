@@ -12,7 +12,6 @@ from strawberry_sqlalchemy_mapper import (
 )
 
 from qupboard_graphql.db.models import (
-    AcquirePulseChannelORM,
     BaseBandORM,
     CalibratableAcquireORM,
     CalibratablePulseORM,
@@ -20,12 +19,12 @@ from qupboard_graphql.db.models import (
     DrivePulseChannelORM,
     HardwareModelORM,
     IQVoltageBiasORM,
-    MeasurePulseChannelORM,
     PhysicalChannelORM,
     QubitORM,
     QubitPulseChannelORM,
     QubitPulseChannelsORM,
     ResonatorORM,
+    ResonatorPulseChannelORM,
     ResonatorPulseChannelsORM,
 )
 from qupboard_graphql.db.session import get_db
@@ -86,13 +85,8 @@ class CalibratableAcquire:
     __exclude__ = ["acquire_pulse_channel"]
 
 
-@mapper.type(MeasurePulseChannelORM)
-class MeasurePulseChannel:
-    __exclude__ = ["resonator_pulse_channels"]
-
-
-@mapper.type(AcquirePulseChannelORM)
-class AcquirePulseChannel:
+@mapper.type(ResonatorPulseChannelORM)
+class ResonatorPulseChannel:
     __exclude__ = ["resonator_pulse_channels"]
 
 

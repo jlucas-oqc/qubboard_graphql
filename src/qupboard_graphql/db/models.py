@@ -15,8 +15,9 @@ hardware_models
        └─ resonators                (FK → qubits)
             ├─ physical_channels    (channel_kind='resonator', FK → resonators)
             └─ resonator_pulse_channels
-                 ├─ measure_pulse_channels  + calibratable_pulse
-                 └─ acquire_pulse_channels  + calibratable_acquire
+                 └─ resonator_pulse_channels_base  (role = 'measure' | 'acquire')
+                      ├─ calibratable_pulses       (role='measure' rows only)
+                      └─ calibratable_acquires     (role='acquire' rows only)
 """
 
 import math
@@ -157,7 +158,7 @@ class CalibratablePulseORM(Base):
         nullable=True,
     )
     measure_pulse_channel_uuid: Mapped[UUID | None] = mapped_column(
-        ForeignKey("measure_pulse_channels.uuid"),
+        ForeignKey("resonator_pulse_channels_base.uuid"),
         nullable=True,
     )
 
@@ -173,7 +174,7 @@ class CalibratablePulseORM(Base):
         back_populates="zx_pi_4_pulse",
         foreign_keys=[cr_channel_uuid],
     )
-    measure_pulse_channel: Mapped["MeasurePulseChannelORM | None"] = relationship(
+    measure_pulse_channel: Mapped["ResonatorPulseChannelORM | None"] = relationship(
         back_populates="pulse",
         foreign_keys=[measure_pulse_channel_uuid],
     )
@@ -332,21 +333,29 @@ class CalibratableAcquireORM(Base):
     use_weights: Mapped[bool] = mapped_column(Boolean, default=False)
 
     acquire_pulse_channel_uuid: Mapped[UUID | None] = mapped_column(
-        ForeignKey("acquire_pulse_channels.uuid"),
+        ForeignKey("resonator_pulse_channels_base.uuid"),
         nullable=True,
     )
-    acquire_pulse_channel: Mapped["AcquirePulseChannelORM | None"] = relationship(back_populates="acquire")
+    acquire_pulse_channel: Mapped["ResonatorPulseChannelORM | None"] = relationship(back_populates="acquire")
 
 
 # ---------------------------------------------------------------------------
-# MeasurePulseChannel
+# ResonatorPulseChannel  (unified – measure and acquire, discriminated by role)
 # ---------------------------------------------------------------------------
 
 
-class MeasurePulseChannelORM(Base):
-    __tablename__ = "measure_pulse_channels"
+class ResonatorPulseChannelORM(Base):
+    """Covers both MeasurePulseChannel and AcquirePulseChannel.
+
+    role: 'measure' | 'acquire'
+    pulse is only populated when role == 'measure'.
+    acquire is only populated when role == 'acquire'.
+    """
+
+    __tablename__ = "resonator_pulse_channels_base"
 
     uuid: Mapped[UUID] = mapped_column(primary_key=True)
+    role: Mapped[str] = mapped_column(String, nullable=False)  # 'measure' | 'acquire'
     frequency: Mapped[float | None] = mapped_column(Float, nullable=True, default=None)
     imbalance: Mapped[float] = mapped_column(Float, default=1.0)
     phase_iq_offset: Mapped[float] = mapped_column(Float, default=0.0)
@@ -357,7 +366,10 @@ class MeasurePulseChannelORM(Base):
         ForeignKey("resonator_pulse_channels.uuid"),
         nullable=True,
     )
-    resonator_pulse_channels: Mapped["ResonatorPulseChannelsORM | None"] = relationship(back_populates="measure")
+    resonator_pulse_channels: Mapped["ResonatorPulseChannelsORM | None"] = relationship(
+        foreign_keys=[resonator_pulse_channels_uuid],
+        overlaps="measure,acquire",
+    )
 
     pulse: Mapped["CalibratablePulseORM | None"] = relationship(
         back_populates="measure_pulse_channel",
@@ -365,29 +377,6 @@ class MeasurePulseChannelORM(Base):
         cascade="all, delete-orphan",
         uselist=False,
     )
-
-
-# ---------------------------------------------------------------------------
-# AcquirePulseChannel
-# ---------------------------------------------------------------------------
-
-
-class AcquirePulseChannelORM(Base):
-    __tablename__ = "acquire_pulse_channels"
-
-    uuid: Mapped[UUID] = mapped_column(primary_key=True)
-    frequency: Mapped[float | None] = mapped_column(Float, nullable=True, default=None)
-    imbalance: Mapped[float] = mapped_column(Float, default=1.0)
-    phase_iq_offset: Mapped[float] = mapped_column(Float, default=0.0)
-    scale_real: Mapped[float] = mapped_column(Float, default=1.0)
-    scale_imag: Mapped[float] = mapped_column(Float, default=0.0)
-
-    resonator_pulse_channels_uuid: Mapped[UUID | None] = mapped_column(
-        ForeignKey("resonator_pulse_channels.uuid"),
-        nullable=True,
-    )
-    resonator_pulse_channels: Mapped["ResonatorPulseChannelsORM | None"] = relationship(back_populates="acquire")
-
     acquire: Mapped["CalibratableAcquireORM | None"] = relationship(
         back_populates="acquire_pulse_channel",
         cascade="all, delete-orphan",
@@ -408,15 +397,27 @@ class ResonatorPulseChannelsORM(Base):
     resonator_uuid: Mapped[UUID | None] = mapped_column(ForeignKey("resonators.uuid"), nullable=True)
     resonator: Mapped["ResonatorORM | None"] = relationship(back_populates="pulse_channels")
 
-    measure: Mapped["MeasurePulseChannelORM | None"] = relationship(
-        back_populates="resonator_pulse_channels",
+    measure: Mapped["ResonatorPulseChannelORM | None"] = relationship(
+        primaryjoin=(
+            "and_(ResonatorPulseChannelORM.resonator_pulse_channels_uuid == ResonatorPulseChannelsORM.uuid,"
+            " ResonatorPulseChannelORM.role == 'measure')"
+        ),
+        foreign_keys=[ResonatorPulseChannelORM.resonator_pulse_channels_uuid],
         cascade="all, delete-orphan",
         uselist=False,
+        viewonly=False,
+        overlaps="acquire,resonator_pulse_channels",
     )
-    acquire: Mapped["AcquirePulseChannelORM | None"] = relationship(
-        back_populates="resonator_pulse_channels",
+    acquire: Mapped["ResonatorPulseChannelORM | None"] = relationship(
+        primaryjoin=(
+            "and_(ResonatorPulseChannelORM.resonator_pulse_channels_uuid == ResonatorPulseChannelsORM.uuid,"
+            " ResonatorPulseChannelORM.role == 'acquire')"
+        ),
+        foreign_keys=[ResonatorPulseChannelORM.resonator_pulse_channels_uuid],
         cascade="all, delete-orphan",
         uselist=False,
+        viewonly=False,
+        overlaps="measure,resonator_pulse_channels",
     )
 
 
