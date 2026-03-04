@@ -484,21 +484,21 @@ hardware_models
 └── qubits
     ├── physical_channels               (channel_kind = 'qubit' | 'resonator')
     │   baseband and IQ-bias columns inlined here
-    ├── drive_pulse_channels            + calibratable_pulses (pulse / pulse_x_pi)
+    ├── drive_pulse_channels            + calibratable_pulses (pulse_role = 'drive' | 'drive_x_pi')
     ├── qubit_pulse_channels_base       (role = 'second_state' | 'freq_shift')
-    │   └── calibratable_pulses         (second_state only)
-    ├── reset_pulse_channels            (reset_kind = 'qubit') + calibratable_pulses
+    │   └── calibratable_pulses         (pulse_role = 'second_state')
+    ├── reset_pulse_channels            (reset_kind = 'qubit') + calibratable_pulses (pulse_role = 'reset_qubit')
     ├── cross_resonance_channels        (role = 'cr' | 'crc')
-    │   └── calibratable_pulses         (role='cr' rows only)
+    │   └── calibratable_pulses         (pulse_role = 'cr')
     ├── phase_comp_x_pi_2               (inlined column on qubits)
     ├── zx_pi_4_comps                   (one per CR pair)
-    │   └── calibratable_pulses         (pulse_precomp / pulse_postcomp, nullable)
+    │   └── calibratable_pulses         (pulse_role = 'zx_precomp' | 'zx_postcomp', nullable)
     └── resonators
         ├── physical_channels           (channel_kind = 'resonator')
         ├── resonator_pulse_channels_base  (role = 'measure' | 'acquire')
-        │   ├── calibratable_pulses     (role='measure' rows only)
+        │   ├── calibratable_pulses     (pulse_role = 'measure')
         │   └── calibratable_acquires   (role='acquire' rows only)
-        └── reset_pulse_channels        (reset_kind = 'resonator') + calibratable_pulses
+        └── reset_pulse_channels        (reset_kind = 'resonator') + calibratable_pulses (pulse_role = 'reset_resonator')
 ```
 
 The database URL defaults to `sqlite:///./qupboard.db` and can be overridden with the `DATABASE_URL` environment variable.

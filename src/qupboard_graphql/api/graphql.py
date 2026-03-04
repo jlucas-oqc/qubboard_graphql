@@ -40,16 +40,7 @@ class PhysicalChannel:
 
 @mapper.type(CalibratablePulseORM)
 class CalibratablePulse:
-    __exclude__ = [
-        "drive_pulse_channel",
-        "drive_pulse_channel_x_pi",
-        "second_state_pulse_channel",
-        "cr_channel",
-        "measure_pulse_channel",
-        "reset_pulse_channel",
-        "zx_pi_4_comp_precomp",
-        "zx_pi_4_comp_postcomp",
-    ]
+    __exclude__ = []
 
 
 @mapper.type(DrivePulseChannelORM)

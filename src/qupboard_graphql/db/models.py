@@ -8,15 +8,15 @@ hardware_models
        ├─ physical_channels          (FK → qubits OR resonators, discriminated by channel_kind)
        │    baseband and IQ-bias columns are inlined here
        ├─ drive_pulse_channels       (FK → qubits)
-       │    └─ calibratable_pulses   (pulse / pulse_x_pi)
+       │    └─ calibratable_pulses   (owner_uuid + pulse_role = 'drive' | 'drive_x_pi')
        ├─ qubit_pulse_channels_base  (FK → qubits, role = 'second_state' | 'freq_shift')
-       │    └─ calibratable_pulses   (second_state pulse only)
+       │    └─ calibratable_pulses   (pulse_role = 'second_state')
        ├─ reset_pulse_channels       (FK → qubits OR resonators, discriminated by reset_kind)
-       │    └─ calibratable_pulses
+       │    └─ calibratable_pulses   (pulse_role = 'reset_qubit' | 'reset_resonator')
        ├─ cross_resonance_channels   (FK → qubits, role = 'cr' | 'crc')
-       │    └─ calibratable_pulses   (role='cr' rows only)
+       │    └─ calibratable_pulses   (pulse_role = 'cr')
        ├─ zx_pi_4_comps              (FK → qubits, one per CR pair)
-       │    └─ calibratable_pulses   (precomp / postcomp, nullable)
+       │    └─ calibratable_pulses   (pulse_role = 'zx_precomp' | 'zx_postcomp', nullable)
        │    phase_comp_x_pi_2 inlined on qubits
        └─ resonators                (FK → qubits)
             ├─ physical_channels    (channel_kind='resonator', FK → resonators)
@@ -102,7 +102,18 @@ class PhysicalChannelORM(Base):
 
 
 # ---------------------------------------------------------------------------
-# CalibratablePulse  (generic – used by DrivePulseChannel & CR channels)
+# CalibratablePulse
+#
+# pulse_role discriminator values:
+#   'drive'            – DrivePulseChannelORM.pulse
+#   'drive_x_pi'       – DrivePulseChannelORM.pulse_x_pi
+#   'second_state'     – QubitPulseChannelORM.pulse  (role='second_state')
+#   'cr'               – CrossResonanceChannelORM.zx_pi_4_pulse
+#   'measure'          – ResonatorPulseChannelORM.pulse
+#   'reset_qubit'      – ResetPulseChannelORM.pulse  (reset_kind='qubit')
+#   'reset_resonator'  – ResetPulseChannelORM.pulse  (reset_kind='resonator')
+#   'zx_precomp'       – ZxPi4CompORM.pulse_precomp
+#   'zx_postcomp'      – ZxPi4CompORM.pulse_postcomp
 # ---------------------------------------------------------------------------
 
 
@@ -119,78 +130,20 @@ class CalibratablePulseORM(Base):
     amp_setup: Mapped[float] = mapped_column(Float, default=0.0)
     std_dev: Mapped[float] = mapped_column(Float, default=0.0)
 
-    # FK back to owning row – only one will be non-NULL per row
-    drive_pulse_channel_uuid: Mapped[UUID | None] = mapped_column(
-        ForeignKey("drive_pulse_channels.uuid"), nullable=True
-    )
-    drive_pulse_channel_pulse_x_pi_uuid: Mapped[UUID | None] = mapped_column(
-        ForeignKey("drive_pulse_channels.uuid"),
-        nullable=True,
-    )
-    second_state_pulse_channel_uuid: Mapped[UUID | None] = mapped_column(
-        ForeignKey("qubit_pulse_channels_base.uuid"),
-        nullable=True,
-    )
-    cr_channel_uuid: Mapped[UUID | None] = mapped_column(
-        ForeignKey("cross_resonance_channels.uuid"),
-        nullable=True,
-    )
-    measure_pulse_channel_uuid: Mapped[UUID | None] = mapped_column(
-        ForeignKey("resonator_pulse_channels_base.uuid"),
-        nullable=True,
-    )
-    reset_pulse_channel_uuid: Mapped[UUID | None] = mapped_column(
-        ForeignKey("reset_pulse_channels.uuid"),
-        nullable=True,
-    )
-    zx_pi_4_comp_precomp_uuid: Mapped[UUID | None] = mapped_column(
-        ForeignKey("zx_pi_4_comps.uuid"),
-        nullable=True,
-    )
-    zx_pi_4_comp_postcomp_uuid: Mapped[UUID | None] = mapped_column(
-        ForeignKey("zx_pi_4_comps.uuid"),
-        nullable=True,
-    )
-
-    drive_pulse_channel: Mapped["DrivePulseChannelORM | None"] = relationship(
-        back_populates="pulse",
-        foreign_keys=[drive_pulse_channel_uuid],
-    )
-    drive_pulse_channel_x_pi: Mapped["DrivePulseChannelORM | None"] = relationship(
-        back_populates="pulse_x_pi",
-        foreign_keys=[drive_pulse_channel_pulse_x_pi_uuid],
-    )
-    second_state_pulse_channel: Mapped["QubitPulseChannelORM | None"] = relationship(
-        back_populates="pulse",
-        foreign_keys=[second_state_pulse_channel_uuid],
-    )
-    cr_channel: Mapped["CrossResonanceChannelORM | None"] = relationship(
-        back_populates="zx_pi_4_pulse",
-        foreign_keys=[cr_channel_uuid],
-    )
-    measure_pulse_channel: Mapped["ResonatorPulseChannelORM | None"] = relationship(
-        back_populates="pulse",
-        foreign_keys=[measure_pulse_channel_uuid],
-    )
-    reset_pulse_channel: Mapped["ResetPulseChannelORM | None"] = relationship(
-        back_populates="pulse",
-        foreign_keys=[reset_pulse_channel_uuid],
-    )
-    zx_pi_4_comp_precomp: Mapped["ZxPi4CompORM | None"] = relationship(
-        back_populates="pulse_precomp",
-        foreign_keys=[zx_pi_4_comp_precomp_uuid],
-        overlaps="zx_pi_4_comp_postcomp",
-    )
-    zx_pi_4_comp_postcomp: Mapped["ZxPi4CompORM | None"] = relationship(
-        back_populates="pulse_postcomp",
-        foreign_keys=[zx_pi_4_comp_postcomp_uuid],
-        overlaps="zx_pi_4_comp_precomp",
-    )
+    # Single generic FK + role discriminator replaces the previous 8 nullable FKs.
+    # owner_uuid points at the PK of whichever parent table owns this pulse.
+    # No DB-level FK constraint is declared here; referential integrity is
+    # enforced by the application layer.
+    owner_uuid: Mapped[UUID] = mapped_column(nullable=False)
+    pulse_role: Mapped[str] = mapped_column(String, nullable=False)
 
 
 # ---------------------------------------------------------------------------
 # DrivePulseChannel  (FK directly to qubits)
 # ---------------------------------------------------------------------------
+
+
+_PULSE_OVERLAPS = "pulse,pulse_x_pi,zx_pi_4_pulse,pulse_precomp,pulse_postcomp"
 
 
 class DrivePulseChannelORM(Base):
@@ -207,16 +160,20 @@ class DrivePulseChannelORM(Base):
     qubit: Mapped["QubitORM | None"] = relationship(back_populates="drive_pulse_channel")
 
     pulse: Mapped["CalibratablePulseORM | None"] = relationship(
-        back_populates="drive_pulse_channel",
-        foreign_keys=[CalibratablePulseORM.drive_pulse_channel_uuid],
+        primaryjoin="and_(CalibratablePulseORM.owner_uuid == DrivePulseChannelORM.uuid,"
+        " CalibratablePulseORM.pulse_role == 'drive')",
+        foreign_keys="CalibratablePulseORM.owner_uuid",
         cascade="all, delete-orphan",
         uselist=False,
+        overlaps=_PULSE_OVERLAPS,
     )
     pulse_x_pi: Mapped["CalibratablePulseORM | None"] = relationship(
-        back_populates="drive_pulse_channel_x_pi",
-        foreign_keys=[CalibratablePulseORM.drive_pulse_channel_pulse_x_pi_uuid],
+        primaryjoin="and_(CalibratablePulseORM.owner_uuid == DrivePulseChannelORM.uuid,"
+        " CalibratablePulseORM.pulse_role == 'drive_x_pi')",
+        foreign_keys="CalibratablePulseORM.owner_uuid",
         cascade="all, delete-orphan",
         uselist=False,
+        overlaps=_PULSE_OVERLAPS,
     )
 
 
@@ -248,10 +205,12 @@ class QubitPulseChannelORM(Base):
     qubit_uuid: Mapped[UUID | None] = mapped_column(ForeignKey("qubits.uuid"), nullable=True)
 
     pulse: Mapped["CalibratablePulseORM | None"] = relationship(
-        back_populates="second_state_pulse_channel",
-        foreign_keys="CalibratablePulseORM.second_state_pulse_channel_uuid",
+        primaryjoin="and_(CalibratablePulseORM.owner_uuid == QubitPulseChannelORM.uuid,"
+        " CalibratablePulseORM.pulse_role == 'second_state')",
+        foreign_keys="CalibratablePulseORM.owner_uuid",
         cascade="all, delete-orphan",
         uselist=False,
+        overlaps=_PULSE_OVERLAPS,
     )
 
 
@@ -285,10 +244,12 @@ class CrossResonanceChannelORM(Base):
     )
 
     zx_pi_4_pulse: Mapped["CalibratablePulseORM | None"] = relationship(
-        back_populates="cr_channel",
-        foreign_keys=[CalibratablePulseORM.cr_channel_uuid],
+        primaryjoin="and_(CalibratablePulseORM.owner_uuid == CrossResonanceChannelORM.uuid,"
+        " CalibratablePulseORM.pulse_role == 'cr')",
+        foreign_keys="CalibratablePulseORM.owner_uuid",
         cascade="all, delete-orphan",
         uselist=False,
+        overlaps=_PULSE_OVERLAPS,
     )
 
 
@@ -339,10 +300,12 @@ class ResonatorPulseChannelORM(Base):
     resonator_uuid: Mapped[UUID | None] = mapped_column(ForeignKey("resonators.uuid"), nullable=True)
 
     pulse: Mapped["CalibratablePulseORM | None"] = relationship(
-        back_populates="measure_pulse_channel",
-        foreign_keys=[CalibratablePulseORM.measure_pulse_channel_uuid],
+        primaryjoin="and_(CalibratablePulseORM.owner_uuid == ResonatorPulseChannelORM.uuid,"
+        " CalibratablePulseORM.pulse_role == 'measure')",
+        foreign_keys="CalibratablePulseORM.owner_uuid",
         cascade="all, delete-orphan",
         uselist=False,
+        overlaps=_PULSE_OVERLAPS,
     )
     acquire: Mapped["CalibratableAcquireORM | None"] = relationship(
         back_populates="acquire_pulse_channel",
@@ -381,10 +344,12 @@ class ResetPulseChannelORM(Base):
     resonator: Mapped["ResonatorORM | None"] = relationship(back_populates="reset_pulse_channel")
 
     pulse: Mapped["CalibratablePulseORM | None"] = relationship(
-        back_populates="reset_pulse_channel",
-        foreign_keys="CalibratablePulseORM.reset_pulse_channel_uuid",
+        primaryjoin="and_(CalibratablePulseORM.owner_uuid == ResetPulseChannelORM.uuid,"
+        " CalibratablePulseORM.pulse_role.in_(['reset_qubit', 'reset_resonator']))",
+        foreign_keys="CalibratablePulseORM.owner_uuid",
         cascade="all, delete-orphan",
         uselist=False,
+        overlaps=_PULSE_OVERLAPS,
     )
 
 
@@ -409,18 +374,20 @@ class ZxPi4CompORM(Base):
     qubit: Mapped["QubitORM | None"] = relationship(back_populates="zx_pi_4_comps")
 
     pulse_precomp: Mapped["CalibratablePulseORM | None"] = relationship(
-        back_populates="zx_pi_4_comp_precomp",
-        foreign_keys="CalibratablePulseORM.zx_pi_4_comp_precomp_uuid",
+        primaryjoin="and_(CalibratablePulseORM.owner_uuid == ZxPi4CompORM.uuid,"
+        " CalibratablePulseORM.pulse_role == 'zx_precomp')",
+        foreign_keys="CalibratablePulseORM.owner_uuid",
         cascade="all, delete-orphan",
         uselist=False,
-        overlaps="zx_pi_4_comp_postcomp",
+        overlaps=_PULSE_OVERLAPS,
     )
     pulse_postcomp: Mapped["CalibratablePulseORM | None"] = relationship(
-        back_populates="zx_pi_4_comp_postcomp",
-        foreign_keys="CalibratablePulseORM.zx_pi_4_comp_postcomp_uuid",
+        primaryjoin="and_(CalibratablePulseORM.owner_uuid == ZxPi4CompORM.uuid,"
+        " CalibratablePulseORM.pulse_role == 'zx_postcomp')",
+        foreign_keys="CalibratablePulseORM.owner_uuid",
         cascade="all, delete-orphan",
         uselist=False,
-        overlaps="zx_pi_4_comp_precomp",
+        overlaps=_PULSE_OVERLAPS,
     )
 
 
