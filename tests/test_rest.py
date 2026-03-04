@@ -42,6 +42,34 @@ def test_get_logical_hardware_not_found(test_client):
     assert response.status_code == 404
 
 
+def test_post_logical_hardware_duplicate_returns_409(test_client, raw_calibration):
+    """
+    Test that posting the same hardware model twice returns a 409 Conflict on the second request,
+    indicating the model already exists.
+    """
+    first = test_client.post("/rest/logical-hardware", content=raw_calibration, headers=_JSON_HEADERS)
+    assert first.status_code == 201
+
+    second = test_client.post("/rest/logical-hardware", content=raw_calibration, headers=_JSON_HEADERS)
+    assert second.status_code == 409
+    assert "already exists" in second.json()["detail"]
+
+
+def test_upload_logical_hardware_duplicate_returns_409(test_client, raw_calibration):
+    """
+    Test that uploading the same hardware model file twice returns a 409 Conflict on the second
+    request, indicating the model already exists.
+    """
+    files = {"file": ("calibration.json", raw_calibration, "application/json")}
+    first = test_client.post("/rest/logical-hardware/upload", files=files)
+    assert first.status_code == 201
+
+    files = {"file": ("calibration.json", raw_calibration, "application/json")}
+    second = test_client.post("/rest/logical-hardware/upload", files=files)
+    assert second.status_code == 409
+    assert "already exists" in second.json()["detail"]
+
+
 def test_get_all_logical_hardware_ids(test_client, hardware_model_uuid):
     """
     Test that GET /rest/logical-hardware returns a list of UUIDs containing the created model's UUID.
