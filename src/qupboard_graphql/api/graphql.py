@@ -146,6 +146,11 @@ class Query:
         db = info.context["db"]
         return HardwareModelORM.get_by_uuid(db, id)
 
+    @strawberry.field
+    def get_all_hardware_model_ids(self, info: strawberry.types.Info) -> list[UUID]:
+        db = info.context["db"]
+        return HardwareModelORM.get_all_pks(db)
+
 
 schema = strawberry.Schema(Query)
 

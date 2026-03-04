@@ -40,3 +40,16 @@ def test_get_logical_hardware_not_found(test_client):
     missing = uuid.uuid4()
     response = test_client.get(f"/rest/logical-hardware/{missing}")
     assert response.status_code == 404
+
+
+def test_get_all_logical_hardware_ids(test_client, hardware_model_uuid):
+    """
+    Test that GET /rest/logical-hardware returns a list of UUIDs containing the created model's UUID.
+    :param test_client: fixture providing a TestClient instance for making requests to the API
+    :param hardware_model_uuid: fixture that creates a hardware model and returns its UUID
+    """
+    response = test_client.get("/rest/logical-hardware")
+    assert response.status_code == 200
+    ids = response.json()
+    assert isinstance(ids, list)
+    assert hardware_model_uuid in ids
