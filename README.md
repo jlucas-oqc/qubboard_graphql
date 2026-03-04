@@ -400,13 +400,15 @@ hardware_models
     │   ├── basebands
     │   └── iq_voltage_biases
     ├── qubit_pulse_channels
-    │   └── calibratable_pulses
+    │   ├── drive_pulse_channels        + calibratable_pulses
+    │   └── qubit_pulse_channels_base   (role = 'second_state' | 'freq_shift')
     ├── cross_resonance_channels        (role = 'cr' | 'crc')
     │   └── calibratable_pulses         (role='cr' rows only)
     └── resonators
         └── resonator_pulse_channels
-            ├── measure_pulse_channels  +  calibratable_pulse
-            └── acquire_pulse_channels  +  calibratable_acquire
+            └── resonator_pulse_channels_base  (role = 'measure' | 'acquire')
+                ├── calibratable_pulses         (role='measure' rows only)
+                └── calibratable_acquires       (role='acquire' rows only)
 ```
 
 The database URL defaults to `sqlite:///./qupboard.db` and can be overridden with the `DATABASE_URL` environment variable.
