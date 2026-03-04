@@ -50,6 +50,17 @@ from qupboard_graphql.db.repository import RepositoryMixin
 
 
 class HardwareModelORM(RepositoryMixin, Base):
+    """Top-level hardware model record containing version and qubit calibration data.
+
+    Attributes:
+        id: Auto-generated UUID primary key.
+        version: Schema or calibration version string.
+        calibration_id: Identifier for the calibration run.
+        logical_connectivity: JSON-encoded mapping of qubit label to list of
+            neighbour indices.
+        qubits: One-to-many collection of associated :class:`QubitORM` rows.
+    """
+
     __tablename__ = "hardware_models"
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
@@ -121,6 +132,26 @@ class PhysicalChannelORM(Base):
 
 
 class CalibratablePulseORM(Base):
+    """A single calibratable waveform pulse stored in the ``calibratable_pulses`` table.
+
+    Pulses are owned by a channel row identified by *owner_uuid* and are
+    further distinguished by the *pulse_role* discriminator column.
+
+    Attributes:
+        id: Auto-increment integer primary key.
+        waveform_type: Waveform shape identifier (e.g. ``"gaussian"``).
+        width: Pulse duration in seconds.
+        amp: Pulse amplitude.
+        phase: Pulse phase in radians.
+        drag: DRAG correction coefficient.
+        rise: Rise-time parameter (fraction of width).
+        amp_setup: Setup amplitude.
+        std_dev: Gaussian standard deviation.
+        owner_uuid: UUID of the owning channel row.
+        pulse_role: Discriminator string identifying which relationship slot
+            this pulse fills (e.g. ``"drive"``, ``"drive_x_pi"``, ``"cr"``).
+    """
+
     __tablename__ = "calibratable_pulses"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -147,6 +178,39 @@ _PULSE_OVERLAPS = "pulse,pulse_x_pi,zx_pi_4_pulse,pulse_precomp,pulse_postcomp"
 
 
 class PulseChannelORM(Base):
+    """Unified pulse channel row covering all channel roles.
+
+    A single table (``pulse_channels``) stores every role of pulse channel:
+    drive, second_state, freq_shift, measure, acquire, reset_qubit, and
+    reset_resonator.  Role-specific columns are ``NULL`` for rows of a
+    different role.
+
+    Attributes:
+        uuid: UUID primary key.
+        channel_role: Role discriminator (``"drive"``, ``"second_state"``,
+            ``"freq_shift"``, ``"measure"``, ``"acquire"``,
+            ``"reset_qubit"``, ``"reset_resonator"``).
+        frequency: Carrier frequency in Hz (``None`` encodes NaN).
+        imbalance: IQ imbalance correction factor.
+        phase_iq_offset: IQ phase offset in radians.
+        scale_real: Real part of the complex scale factor.
+        scale_imag: Imaginary part of the complex scale factor.
+        ss_active: (*second_state* only) Whether second-state driving is active.
+        ss_delay: (*second_state* only) Second-state delay in seconds.
+        fs_active: (*freq_shift* only) Whether frequency shifting is active.
+        fs_amp: (*freq_shift* only) Frequency-shift amplitude.
+        fs_phase: (*freq_shift* only) Frequency-shift phase.
+        acq_delay: (*acquire* only) Acquisition delay in seconds.
+        acq_width: (*acquire* only) Acquisition window width in seconds.
+        acq_sync: (*acquire* only) Whether to sync the acquisition.
+        acq_use_weights: (*acquire* only) Whether to use integration weights.
+        reset_delay: (*reset_qubit/reset_resonator* only) Reset delay in seconds.
+        qubit_uuid: FK to :class:`QubitORM` (set for qubit-owned channels).
+        resonator_uuid: FK to :class:`ResonatorORM` (set for resonator channels).
+        pulse: Primary pulse waveform (most roles).
+        pulse_x_pi: X-π pulse waveform (drive role only).
+    """
+
     __tablename__ = "pulse_channels"
 
     uuid: Mapped[UUID] = mapped_column(primary_key=True)
@@ -247,6 +311,27 @@ class CrossResonanceChannelORM(Base):
 
 
 class ZxPi4CompORM(Base):
+    """ZX-π/4 compensation element associated with a specific auxiliary qubit.
+
+    Each row represents the calibration data for one CR-pair compensation,
+    keyed by *auxiliary_qubit* index.  Optional pre- and post-compensation
+    pulses are stored as related :class:`CalibratablePulseORM` rows.
+
+    Attributes:
+        uuid: Auto-generated UUID primary key.
+        auxiliary_qubit: Index of the auxiliary (control) qubit in the CR pair.
+        phase_comp_target_zx_pi_4: Target ZX-π/4 phase compensation.
+        pulse_zx_pi_4_target_rotary_amp: Optional rotary pulse amplitude.
+        precomp_active: Whether pre-compensation is enabled.
+        postcomp_active: Whether post-compensation is enabled.
+        use_second_state: Whether to use the second excited state.
+        use_rotary: Whether to use a rotary pulse.
+        qubit_uuid: FK to the owning :class:`QubitORM`.
+        qubit: Relationship to the owning :class:`QubitORM`.
+        pulse_precomp: Optional pre-compensation :class:`CalibratablePulseORM`.
+        pulse_postcomp: Optional post-compensation :class:`CalibratablePulseORM`.
+    """
+
     __tablename__ = "zx_pi_4_comps"
 
     uuid: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
@@ -287,6 +372,21 @@ class ZxPi4CompORM(Base):
 
 
 class ResonatorORM(Base):
+    """Readout resonator coupled one-to-one with a :class:`QubitORM`.
+
+    Holds the resonator's physical channel and its three pulse channels
+    (measure, acquire, reset_resonator).
+
+    Attributes:
+        uuid: UUID primary key (shared with the Pydantic schema's UUID).
+        qubit_uuid: FK to the parent :class:`QubitORM`.
+        qubit: Relationship to the parent :class:`QubitORM`.
+        physical_channel: Single :class:`PhysicalChannelORM` with
+            ``channel_kind = "resonator"``.
+        pulse_channels: All resonator pulse channels (measure, acquire,
+            reset_resonator).
+    """
+
     __tablename__ = "resonators"
 
     uuid: Mapped[UUID] = mapped_column(primary_key=True)
@@ -310,14 +410,17 @@ class ResonatorORM(Base):
 
     @property
     def measure_channel(self) -> "PulseChannelORM | None":
+        """Return the measure pulse channel, or ``None`` if absent."""
         return next((c for c in self.pulse_channels if c.channel_role == "measure"), None)
 
     @property
     def acquire_channel(self) -> "PulseChannelORM | None":
+        """Return the acquire pulse channel, or ``None`` if absent."""
         return next((c for c in self.pulse_channels if c.channel_role == "acquire"), None)
 
     @property
     def reset_resonator_channel(self) -> "PulseChannelORM | None":
+        """Return the resonator reset pulse channel, or ``None`` if absent."""
         return next((c for c in self.pulse_channels if c.channel_role == "reset_resonator"), None)
 
 
@@ -327,6 +430,33 @@ class ResonatorORM(Base):
 
 
 class QubitORM(Base):
+    """ORM representation of a single qubit and its full calibration payload.
+
+    Owns a physical channel, multiple pulse channels (drive, second_state,
+    freq_shift, reset_qubit), cross-resonance channels, ZX-π/4 compensation
+    entries, and a one-to-one resonator.
+
+    Attributes:
+        uuid: UUID primary key.
+        qubit_key: String key used to identify the qubit within the model
+            (e.g. ``"q0"``).
+        mean_z_map_args: JSON-encoded two-element list ``[real, imag]``
+            representing the mean-Z mapping arguments.
+        discriminator_real: Real part of the state-discrimination threshold.
+        discriminator_imag: Imaginary part of the state-discrimination threshold.
+        direct_x_pi: Whether to use a direct X-π pulse.
+        phase_comp_x_pi_2: X-π/2 phase compensation value.
+        hardware_model_id: FK to the parent :class:`HardwareModelORM`.
+        hardware_model: Relationship to the parent :class:`HardwareModelORM`.
+        physical_channel: Single :class:`PhysicalChannelORM` with
+            ``channel_kind = "qubit"``.
+        pulse_channels: All qubit-owned pulse channels.
+        resonator: One-to-one :class:`ResonatorORM`.
+        cross_resonance_channels: CR pulse channels (role ``"cr"``).
+        cross_resonance_cancellation_channels: CRC pulse channels (role ``"crc"``).
+        zx_pi_4_comps: ZX-π/4 compensation rows.
+    """
+
     __tablename__ = "qubits"
 
     uuid: Mapped[UUID] = mapped_column(primary_key=True)
@@ -364,18 +494,22 @@ class QubitORM(Base):
 
     @property
     def drive_channel(self) -> "PulseChannelORM | None":
+        """Return the drive pulse channel, or ``None`` if absent."""
         return next((c for c in self.pulse_channels if c.channel_role == "drive"), None)
 
     @property
     def second_state_channel(self) -> "PulseChannelORM | None":
+        """Return the second-state pulse channel, or ``None`` if absent."""
         return next((c for c in self.pulse_channels if c.channel_role == "second_state"), None)
 
     @property
     def freq_shift_channel(self) -> "PulseChannelORM | None":
+        """Return the frequency-shift pulse channel, or ``None`` if absent."""
         return next((c for c in self.pulse_channels if c.channel_role == "freq_shift"), None)
 
     @property
     def reset_qubit_channel(self) -> "PulseChannelORM | None":
+        """Return the qubit reset pulse channel, or ``None`` if absent."""
         return next((c for c in self.pulse_channels if c.channel_role == "reset_qubit"), None)
 
     cross_resonance_channels: Mapped[list["CrossResonanceChannelORM"]] = relationship(

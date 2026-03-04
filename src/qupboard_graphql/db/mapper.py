@@ -1,5 +1,18 @@
 """
 Utilities for converting Pydantic HardwareModel ↔ SQLAlchemy ORM instances.
+
+The public API consists of two functions:
+
+- :func:`hardware_model_to_orm` – converts a validated
+  :class:`~qupboard_graphql.schemas.hardware_model.HardwareModel` into a
+  fully-populated :class:`~qupboard_graphql.db.models.HardwareModelORM` tree
+  ready for ``session.add()`` and ``session.commit()``.
+
+- :func:`hardware_model_from_orm` – reconstructs a
+  :class:`~qupboard_graphql.schemas.hardware_model.HardwareModel` from a
+  loaded :class:`~qupboard_graphql.db.models.HardwareModelORM` instance.
+
+All private helpers (prefixed ``_``) are internal implementation details.
 """
 
 import json
@@ -44,6 +57,18 @@ from qupboard_graphql.db.models import (
 
 
 def _pulse_orm(pulse: CalibratablePulse, owner_uuid, pulse_role: str) -> CalibratablePulseORM:
+    """Build a :class:`CalibratablePulseORM` from a Pydantic pulse and role metadata.
+
+    Args:
+        pulse: The source
+            :class:`~qupboard_graphql.schemas.hardware_model.CalibratablePulse`.
+        owner_uuid: UUID of the owning channel row.
+        pulse_role: Discriminator string identifying which relationship slot
+            this pulse fills (e.g. ``"drive"``, ``"drive_x_pi"``, ``"cr"``).
+
+    Returns:
+        A new, unsaved :class:`CalibratablePulseORM` instance.
+    """
     return CalibratablePulseORM(
         owner_uuid=owner_uuid,
         pulse_role=pulse_role,
@@ -59,14 +84,30 @@ def _pulse_orm(pulse: CalibratablePulse, owner_uuid, pulse_role: str) -> Calibra
 
 
 def _scale_parts(scale) -> tuple[float, float]:
-    """Return (real, imag) from a complex or float scale value."""
+    """Return the real and imaginary parts of a scale value.
+
+    Args:
+        scale: A :class:`complex` or :class:`float` scale factor.
+
+    Returns:
+        A ``(real, imag)`` tuple.  When *scale* is a plain ``float``,
+        the imaginary part is ``0.0``.
+    """
     if isinstance(scale, complex):
         return scale.real, scale.imag
     return float(scale), 0.0
 
 
 def _nan_to_none(value: float) -> float | None:
-    """Convert NaN to None for SQL NULL storage."""
+    """Convert a NaN float to ``None`` for SQL NULL storage.
+
+    Args:
+        value: The float value to inspect.
+
+    Returns:
+        ``None`` if *value* is ``NaN`` or already ``None``; otherwise
+        *value* unchanged.
+    """
     if value is None:
         return None
     try:
@@ -76,6 +117,14 @@ def _nan_to_none(value: float) -> float | None:
 
 
 def _none_to_nan(value: float | None) -> float:
+    """Convert ``None`` back to NaN when reconstructing Pydantic models.
+
+    Args:
+        value: A float or ``None`` read from the database.
+
+    Returns:
+        ``math.nan`` when *value* is ``None``; otherwise *value* unchanged.
+    """
     return math.nan if value is None else value
 
 
@@ -90,7 +139,29 @@ def _pulse_channel_orm(
     resonator_uuid=None,
     **extras,
 ) -> PulseChannelORM:
-    """Build a PulseChannelORM row from common fields + role-specific extras."""
+    """Build a :class:`PulseChannelORM` row from common fields and role-specific extras.
+
+    Args:
+        uuid: UUID for the new pulse channel row.
+        channel_role: Role discriminator string
+            (e.g. ``"drive"``, ``"acquire"``).
+        frequency: Carrier frequency in Hz; ``NaN`` is stored as ``NULL``.
+        imbalance: IQ imbalance correction factor.
+        phase_iq_offset: IQ phase offset in radians.
+        scale: Complex or float scale factor; decomposed into
+            ``scale_real`` / ``scale_imag`` columns.
+        qubit_uuid: FK to :class:`~qupboard_graphql.db.models.QubitORM`,
+            or ``None`` for resonator-owned channels.
+        resonator_uuid: FK to
+            :class:`~qupboard_graphql.db.models.ResonatorORM`, or ``None``
+            for qubit-owned channels.
+        **extras: Additional role-specific keyword arguments passed directly
+            to the :class:`PulseChannelORM` constructor
+            (e.g. ``ss_active``, ``acq_delay``).
+
+    Returns:
+        A new, unsaved :class:`PulseChannelORM` instance.
+    """
     real, imag = _scale_parts(scale)
     return PulseChannelORM(
         uuid=uuid,
@@ -112,7 +183,18 @@ def _pulse_channel_orm(
 
 
 def _physical_channel_orm(pc: PhysicalChannel, owner_uuid, owner_kind: str) -> PhysicalChannelORM:
-    """owner_kind: 'qubit' | 'resonator'"""
+    """Build a :class:`PhysicalChannelORM` from a Pydantic :class:`PhysicalChannel`.
+
+    Args:
+        pc: The source
+            :class:`~qupboard_graphql.schemas.hardware_model.PhysicalChannel`.
+        owner_uuid: UUID of the owning qubit or resonator row.
+        owner_kind: ``"qubit"`` or ``"resonator"`` — sets ``channel_kind``
+            and the appropriate FK column.
+
+    Returns:
+        A new, unsaved :class:`PhysicalChannelORM` instance.
+    """
     return PhysicalChannelORM(
         uuid=pc.uuid,
         channel_kind=owner_kind,
@@ -131,6 +213,20 @@ def _physical_channel_orm(pc: PhysicalChannel, owner_uuid, owner_kind: str) -> P
 
 
 def _zx_pi4_comp_orm(auxiliary_qubit: int, comp: ZxPi4Comp) -> ZxPi4CompORM:
+    """Build a :class:`ZxPi4CompORM` from a Pydantic :class:`ZxPi4Comp`.
+
+    Optional pre- and post-compensation pulses are attached as child
+    :class:`CalibratablePulseORM` rows when present.
+
+    Args:
+        auxiliary_qubit: Index of the auxiliary (control) qubit in the CR pair.
+        comp: The source
+            :class:`~qupboard_graphql.schemas.hardware_model.ZxPi4Comp`.
+
+    Returns:
+        A new, unsaved :class:`ZxPi4CompORM` instance with any child pulses
+        already attached.
+    """
     orm = ZxPi4CompORM(
         auxiliary_qubit=auxiliary_qubit,
         phase_comp_target_zx_pi_4=comp.phase_comp_target_zx_pi_4,
@@ -150,6 +246,22 @@ def _zx_pi4_comp_orm(auxiliary_qubit: int, comp: ZxPi4Comp) -> ZxPi4CompORM:
 
 
 def _qubit_orm(qubit_key: str, qubit: Qubit) -> QubitORM:
+    """Convert a Pydantic :class:`Qubit` into a fully-populated :class:`QubitORM` tree.
+
+    Recursively builds all child rows (physical channel, pulse channels,
+    resonator, CR/CRC channels, ZX-π/4 comps) and attaches them to the
+    returned :class:`QubitORM` via SQLAlchemy relationships.
+
+    Args:
+        qubit_key: String key identifying the qubit within the hardware model
+            (e.g. ``"q0"``).
+        qubit: The source
+            :class:`~qupboard_graphql.schemas.hardware_model.Qubit`.
+
+    Returns:
+        A new, unsaved :class:`QubitORM` instance with the full child tree
+        attached.
+    """
     discriminator_real, discriminator_imag = _scale_parts(qubit.discriminator)
     qid = qubit.uuid
     pc = qubit.pulse_channels
@@ -310,7 +422,19 @@ def _qubit_orm(qubit_key: str, qubit: Qubit) -> QubitORM:
 
 
 def hardware_model_to_orm(model: HardwareModel) -> HardwareModelORM:
-    """Convert a validated Pydantic HardwareModel into a fully-populated ORM tree."""
+    """Convert a validated Pydantic HardwareModel into a fully-populated ORM tree.
+
+    Args:
+        model: A validated
+            :class:`~qupboard_graphql.schemas.hardware_model.HardwareModel`
+            instance.
+
+    Returns:
+        A new, unsaved
+        :class:`~qupboard_graphql.db.models.HardwareModelORM` instance with
+        all child rows attached and ready for ``session.add()`` followed by
+        ``session.commit()``.
+    """
     qubit_orms = [_qubit_orm(key, qubit) for key, qubit in model.qubits.items()]
     return HardwareModelORM(
         version=model.version,
@@ -326,6 +450,16 @@ def hardware_model_to_orm(model: HardwareModel) -> HardwareModelORM:
 
 
 def _pulse_from_orm(orm) -> CalibratablePulse:
+    """Reconstruct a :class:`CalibratablePulse` from a :class:`CalibratablePulseORM`.
+
+    Args:
+        orm: A loaded
+            :class:`~qupboard_graphql.db.models.CalibratablePulseORM` row.
+
+    Returns:
+        The corresponding Pydantic
+        :class:`~qupboard_graphql.schemas.hardware_model.CalibratablePulse`.
+    """
     return CalibratablePulse(
         waveform_type=orm.waveform_type,
         width=orm.width,
@@ -339,6 +473,16 @@ def _pulse_from_orm(orm) -> CalibratablePulse:
 
 
 def _physical_channel_from_orm(orm: PhysicalChannelORM) -> PhysicalChannel:
+    """Reconstruct a :class:`PhysicalChannel` from a :class:`PhysicalChannelORM`.
+
+    Args:
+        orm: A loaded
+            :class:`~qupboard_graphql.db.models.PhysicalChannelORM` row.
+
+    Returns:
+        The corresponding Pydantic
+        :class:`~qupboard_graphql.schemas.hardware_model.PhysicalChannel`.
+    """
     from qupboard_graphql.schemas.hardware_model import BaseBand, IQVoltageBias
 
     return PhysicalChannel(
@@ -358,6 +502,18 @@ def _physical_channel_from_orm(orm: PhysicalChannelORM) -> PhysicalChannel:
 
 
 def _reset_pulse_channel_from_orm(orm: PulseChannelORM) -> ResetPulseChannel:
+    """Reconstruct a :class:`ResetPulseChannel` from a :class:`PulseChannelORM`.
+
+    Args:
+        orm: A loaded
+            :class:`~qupboard_graphql.db.models.PulseChannelORM` row with
+            ``channel_role`` equal to ``"reset_qubit"`` or
+            ``"reset_resonator"``.
+
+    Returns:
+        The corresponding Pydantic
+        :class:`~qupboard_graphql.schemas.hardware_model.ResetPulseChannel`.
+    """
     return ResetPulseChannel(
         uuid=orm.uuid,
         frequency=_none_to_nan(orm.frequency),
@@ -370,6 +526,23 @@ def _reset_pulse_channel_from_orm(orm: PulseChannelORM) -> ResetPulseChannel:
 
 
 def _qubit_from_orm(orm: QubitORM) -> tuple[str, Qubit]:
+    """Reconstruct a ``(qubit_key, Qubit)`` pair from a :class:`QubitORM`.
+
+    Recursively reconstructs all nested Pydantic objects from their ORM
+    counterparts (physical channels, pulse channels, resonator, CR/CRC
+    channels, ZX-π/4 comps).
+
+    Args:
+        orm: A fully-loaded
+            :class:`~qupboard_graphql.db.models.QubitORM` row.
+
+    Returns:
+        A ``(qubit_key, qubit)`` tuple where *qubit_key* is the string key
+        used in the parent
+        :class:`~qupboard_graphql.schemas.hardware_model.HardwareModel`'s
+        ``qubits`` mapping and *qubit* is the reconstructed
+        :class:`~qupboard_graphql.schemas.hardware_model.Qubit`.
+    """
     mean_z = json.loads(orm.mean_z_map_args)
     discriminator = complex(orm.discriminator_real, orm.discriminator_imag)
 
@@ -498,7 +671,18 @@ def _qubit_from_orm(orm: QubitORM) -> tuple[str, Qubit]:
 
 
 def hardware_model_from_orm(orm: HardwareModelORM) -> HardwareModel:
-    """Convert a fully-loaded ORM HardwareModelORM back into a Pydantic HardwareModel."""
+    """Convert a fully-loaded ORM HardwareModelORM back into a Pydantic HardwareModel.
+
+    Args:
+        orm: A fully-loaded
+            :class:`~qupboard_graphql.db.models.HardwareModelORM` instance
+            (all relationships must be accessible).
+
+    Returns:
+        The reconstructed
+        :class:`~qupboard_graphql.schemas.hardware_model.HardwareModel`
+        instance.
+    """
     qubits = dict(_qubit_from_orm(q) for q in orm.qubits)
     return HardwareModel(
         version=orm.version,

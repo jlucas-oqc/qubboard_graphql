@@ -1,3 +1,10 @@
+"""
+REST API routes for managing hardware-model calibration records.
+
+Exposes CRUD-style endpoints under the prefix defined by
+:data:`~qupboard_graphql.config.Settings.REST_PATH` (default ``/rest``).
+"""
+
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
@@ -21,7 +28,14 @@ rest_router = APIRouter(tags=["Hardware Models"])
 async def get_all_logical_hardware_ids(
     db: Session = Depends(get_db),
 ) -> list[UUID]:
-    """Return the UUIDs of all hardware models currently stored in the database."""
+    """Return the UUIDs of all hardware models currently stored in the database.
+
+    Args:
+        db: An active SQLAlchemy session injected by :func:`~qupboard_graphql.db.session.get_db`.
+
+    Returns:
+        A list of UUIDs, one per stored hardware model.
+    """
     return HardwareModelORM.get_all_pks(db)
 
 
@@ -37,7 +51,15 @@ async def get_logical_hardware(
 ) -> HardwareModel:
     """Retrieve a single hardware model by its UUID.
 
-    Returns a 404 if no hardware model with the given UUID exists.
+    Args:
+        uuid: UUID of the hardware model to retrieve.
+        db: An active SQLAlchemy session injected by :func:`~qupboard_graphql.db.session.get_db`.
+
+    Returns:
+        The :class:`~qupboard_graphql.schemas.hardware_model.HardwareModel` matching *uuid*.
+
+    Raises:
+        HTTPException: 404 if no hardware model with the given UUID exists.
     """
     orm_obj = HardwareModelORM.get_by_uuid(db, uuid)
     if orm_obj is None:
@@ -62,10 +84,17 @@ async def create_logical_hardware(
 ) -> UUID:
     """Persist a new hardware model supplied as a JSON body.
 
-    Returns the UUID assigned to the created record.
-    Raises a 409 if a hardware model with the same unique identifier already exists.
-    Raises a 415 if the file's content type is not `application/json` or `text/plain`.
-    Raises a 422 if the file content cannot be parsed as a valid `HardwareModel`.
+    Args:
+        model: A validated :class:`~qupboard_graphql.schemas.hardware_model.HardwareModel`
+            instance parsed from the request body.
+        db: An active SQLAlchemy session injected by :func:`~qupboard_graphql.db.session.get_db`.
+
+    Returns:
+        The UUID assigned to the newly created hardware model record.
+
+    Raises:
+        HTTPException: 409 if a hardware model with the same unique identifier
+            already exists.
     """
     orm_obj = hardware_model_to_orm(model)
     db.add(orm_obj)
@@ -97,12 +126,21 @@ async def upload_logical_hardware(
 ) -> UUID:
     """Upload a JSON file containing a hardware model and persist it.
 
-    - **file**: A JSON file whose content conforms to the `HardwareModel` schema.
+    Args:
+        file: A JSON file whose content conforms to the
+            :class:`~qupboard_graphql.schemas.hardware_model.HardwareModel` schema.
+        db: An active SQLAlchemy session injected by :func:`~qupboard_graphql.db.session.get_db`.
 
-    Returns the UUID assigned to the created record.
-    Raises a 409 if a hardware model with the same unique identifier already exists.
-    Raises a 415 if the file's content type is not `application/json` or `text/plain`.
-    Raises a 422 if the file content cannot be parsed as a valid `HardwareModel`.
+    Returns:
+        The UUID assigned to the newly created hardware model record.
+
+    Raises:
+        HTTPException: 415 if the file's content type is not ``application/json``
+            or ``text/plain``.
+        HTTPException: 422 if the file content cannot be parsed as a valid
+            ``HardwareModel``.
+        HTTPException: 409 if a hardware model with the same unique identifier
+            already exists.
     """
     if file.content_type not in ("application/json", "text/plain"):
         raise HTTPException(

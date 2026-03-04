@@ -1,3 +1,10 @@
+"""
+Root and health-check routes for the qupboard_graphql service.
+
+Provides a ``/healthcheck`` endpoint for liveness probes and a ``/``
+redirect to the interactive API documentation.
+"""
+
 from fastapi import APIRouter
 from starlette.responses import RedirectResponse, Response
 
@@ -10,6 +17,7 @@ async def healthcheck() -> Response:
     return Response("OK")
 
 
-@root_router.get("/")
+@root_router.get("/", include_in_schema=False)
 async def root():
+    """Redirect the root path to the auto-generated API documentation."""
     return RedirectResponse("/docs")
