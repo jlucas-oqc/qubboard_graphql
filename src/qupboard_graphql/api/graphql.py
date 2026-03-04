@@ -1,0 +1,152 @@
+import json
+from uuid import UUID
+
+import strawberry
+from fastapi import Depends
+from sqlalchemy import Uuid as SaUuid
+from sqlalchemy.orm import Session
+from strawberry.fastapi import GraphQLRouter
+from strawberry_sqlalchemy_mapper import (
+    StrawberrySQLAlchemyLoader,
+    StrawberrySQLAlchemyMapper,
+)
+
+from qupboard_graphql.db.models import (
+    AcquirePulseChannelORM,
+    BaseBandORM,
+    CalibratableAcquireORM,
+    CalibratablePulseORM,
+    CrossResonanceCancellationChannelORM,
+    CrossResonanceChannelORM,
+    DrivePulseChannelORM,
+    HardwareModelORM,
+    IQVoltageBiasORM,
+    MeasurePulseChannelORM,
+    PhysicalChannelORM,
+    QubitORM,
+    QubitPulseChannelORM,
+    QubitPulseChannelsORM,
+    ResonatorORM,
+    ResonatorPhysicalChannelORM,
+    ResonatorPulseChannelsORM,
+)
+from qupboard_graphql.db.session import get_db
+
+
+mapper = StrawberrySQLAlchemyMapper(
+    extra_sqlalchemy_type_to_strawberry_type_map={SaUuid: UUID},
+)
+
+
+@mapper.type(BaseBandORM)
+class BaseBand:
+    __exclude__ = ["physical_channel", "resonator_physical_channel"]
+
+
+@mapper.type(IQVoltageBiasORM)
+class IQVoltageBias:
+    __exclude__ = ["physical_channel", "resonator_physical_channel"]
+
+
+@mapper.type(PhysicalChannelORM)
+class PhysicalChannel:
+    __exclude__ = ["qubit"]
+
+
+@mapper.type(ResonatorPhysicalChannelORM)
+class ResonatorPhysicalChannel:
+    __exclude__ = ["resonator"]
+
+
+@mapper.type(CalibratablePulseORM)
+class CalibratablePulse:
+    __exclude__ = [
+        "drive_pulse_channel",
+        "drive_pulse_channel_x_pi",
+        "cr_channel",
+        "measure_pulse_channel",
+    ]
+
+
+@mapper.type(DrivePulseChannelORM)
+class DrivePulseChannel:
+    __exclude__ = ["qubit_pulse_channels"]
+
+
+@mapper.type(QubitPulseChannelORM)
+class QubitPulseChannel:
+    __exclude__ = []
+
+
+@mapper.type(QubitPulseChannelsORM)
+class QubitPulseChannels:
+    __exclude__ = ["qubit"]
+
+
+@mapper.type(CrossResonanceChannelORM)
+class CrossResonanceChannel:
+    __exclude__ = ["qubit"]
+
+
+@mapper.type(CrossResonanceCancellationChannelORM)
+class CrossResonanceCancellationChannel:
+    __exclude__ = ["qubit"]
+
+
+@mapper.type(CalibratableAcquireORM)
+class CalibratableAcquire:
+    __exclude__ = ["acquire_pulse_channel"]
+
+
+@mapper.type(MeasurePulseChannelORM)
+class MeasurePulseChannel:
+    __exclude__ = ["resonator_pulse_channels"]
+
+
+@mapper.type(AcquirePulseChannelORM)
+class AcquirePulseChannel:
+    __exclude__ = ["resonator_pulse_channels"]
+
+
+@mapper.type(ResonatorPulseChannelsORM)
+class ResonatorPulseChannels:
+    __exclude__ = ["resonator"]
+
+
+@mapper.type(ResonatorORM)
+class Resonator:
+    __exclude__ = ["qubit"]
+
+
+@mapper.type(QubitORM)
+class Qubit:
+    __exclude__ = ["hardware_model"]
+
+    @strawberry.field
+    def mean_z_map_args(self) -> list[float]:
+        return json.loads(self.mean_z_map_args)  # type: ignore[attr-defined]
+
+
+@mapper.type(HardwareModelORM)
+class HardwareModel:
+    pass
+
+
+mapper.finalize()
+
+
+async def get_db_context(db: Session = Depends(get_db)):
+    return {"db": db, "sqlalchemy_loader": StrawberrySQLAlchemyLoader(bind=db)}
+
+
+@strawberry.type
+class Query:
+    @strawberry.field
+    def get_calibration(self, info: strawberry.types.Info, id: UUID) -> HardwareModel | None:
+        db = info.context["db"]
+        return HardwareModelORM.get_by_uuid(db, id)
+
+
+schema = strawberry.Schema(Query)
+
+graphql_router = GraphQLRouter(schema, context_getter=get_db_context)
