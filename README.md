@@ -2,7 +2,8 @@
 
 ## Introduction
 
-Qupboard is a proof-of-concept service for storing and serving **hardware calibration models** via both a GraphQL and a REST API. It is built with:
+Qupboard is a proof-of-concept service for storing and serving **hardware calibration models** via both a GraphQL and a
+REST API. It is built with:
 
 - **[FastAPI](https://fastapi.tiangolo.com/)** – HTTP framework for the REST and GraphQL routers
 - **[Strawberry](https://strawberry.rocks/)** – GraphQL schema and query engine
@@ -10,10 +11,10 @@ Qupboard is a proof-of-concept service for storing and serving **hardware calibr
 - **[Alembic](https://alembic.sqlalchemy.org/)** – database schema migrations
 - **[Pydantic](https://docs.pydantic.dev/)** – request/response validation and serialisation
 
-The default backing store is SQLite (`qupboard.db`), configured via the `DATABASE_URL` environment variable, but
-because we use SQLAlchemy, many other database engines may be used (postgres, MySQL, MariaDB etc).
+The default backing store is SQLite (`qupboard.db`), configured via the `DATABASE_URL` environment variable, but because
+we use SQLAlchemy, many other database engines may be used (postgres, MySQL, MariaDB etc).
 
----
+______________________________________________________________________
 
 ## Getting Started
 
@@ -36,10 +37,11 @@ poetry install --with dev
 
 ### Configuration
 
-The application is configured via environment variables. All settings have sensible defaults so no configuration is required to run locally:
+The application is configured via environment variables. All settings have sensible defaults so no configuration is
+required to run locally:
 
 | Variable       | Default                   | Description                        |
-|----------------|---------------------------|------------------------------------|
+| -------------- | ------------------------- | ---------------------------------- |
 | `DATABASE_URL` | `sqlite:///./qupboard.db` | SQLAlchemy database URL            |
 | `GRAPHQL_PATH` | `/graphql`                | Path for the GraphQL endpoint      |
 | `REST_PATH`    | `/rest`                   | Path prefix for the REST endpoints |
@@ -71,19 +73,20 @@ into a virtual environment):
 
 ```bash
 ./src/qupboard_graphql/main.py
-````
+```
 
 The server starts on `http://0.0.0.0:8000`. The following endpoints are then available:
 
 | URL                             | Description                            |
-|---------------------------------|----------------------------------------|
+| ------------------------------- | -------------------------------------- |
 | `http://localhost:8000/graphql` | GraphQL API + interactive GraphiQL IDE |
 | `http://localhost:8000/rest`    | REST API                               |
 | `http://localhost:8000/docs`    | OpenAPI / Swagger UI                   |
 
 ### Running the tests
 
-The test suite uses [pytest](https://pytest.org/) with an in-memory SQLite database so no prior database setup is required.
+The test suite uses [pytest](https://pytest.org/) with an in-memory SQLite database so no prior database setup is
+required.
 
 Run all tests:
 
@@ -103,7 +106,7 @@ Run with coverage:
 poetry run pytest --cov=qupboard_graphql --cov-report=term-missing
 ```
 
----
+______________________________________________________________________
 
 ## Project Structure
 
@@ -139,7 +142,45 @@ qupboard_graphql/
     └── data/                       # Sample calibration JSON fixtures
 ```
 
----
+______________________________________________________________________
+
+## Downloading the GraphQL Schema
+
+For general playing, it's best to simply use the interactive GraphiQL IDE at `http://localhost:8000/graphql` to explore
+the schema and test queries. However, for programmatic access to the schema (e.g. for code generation or client
+development),
+
+There are several ways to download the schema from the GraphQL endpoint once the server is running.
+
+### Option 1 – Strawberry CLI (recommended)
+
+Strawberry can export the schema directly from the Python module without starting the server:
+
+```bash
+poetry run strawberry export-schema qupboard_graphql.api.graphql:schema
+```
+
+### Option 2 – Introspection query via `curl`
+
+Send a standard GraphQL introspection query to the running server:
+
+```bash
+curl -s -X POST http://localhost:8000/graphql \
+     -H "Content-Type: application/json" \
+     -d '{"query": "{ __schema { types { name } } }"}' | jq
+```
+
+To retrieve the full schema definition, use the standard introspection query:
+
+```bash
+curl -s -X POST http://localhost:8000/graphql \
+     -H "Content-Type: application/json" \
+     -d @- <<'EOF'
+{
+  "query": "query IntrospectionQuery { __schema { queryType { name } mutationType { name } subscriptionType { name } types { ...FullType } directives { name description locations args { ...InputValue } } } } fragment FullType on __Type { kind name description fields(includeDeprecated: true) { name description args { ...InputValue } type { ...TypeRef } isDeprecated deprecationReason } inputFields { ...InputValue } interfaces { ...TypeRef } enumValues(includeDeprecated: true) { name description isDeprecated deprecationReason } possibleTypes { ...TypeRef } } fragment InputValue on __InputValue { name description type { ...TypeRef } defaultValue } fragment TypeRef on __Type { kind name ofType { kind name ofType { kind name ofType { kind name ofType { kind name ofType { kind name ofType { kind name } } } } } } }"
+}
+EOF
+```
 
 ## Example Queries
 
@@ -295,14 +336,14 @@ The GraphQL API is available at `/graphql`. An interactive GraphiQL IDE is serve
 }
 ```
 
----
+______________________________________________________________________
 
 ### REST
 
 The REST API is available at `/rest`. Interactive OpenAPI docs are served at `/docs`.
 
 | Method | Path                            | Description                                        |
-|--------|---------------------------------|----------------------------------------------------|
+| ------ | ------------------------------- | -------------------------------------------------- |
 | `GET`  | `/healthcheck`                  | Health check – returns `OK`                        |
 | `GET`  | `/rest/logical-hardware`        | List all hardware model UUIDs                      |
 | `GET`  | `/rest/logical-hardware/{uuid}` | Fetch a hardware model by UUID                     |
@@ -336,13 +377,14 @@ curl -X POST http://localhost:8000/rest/logical-hardware/upload \
      -F "file=@path/to/calibration.json;type=application/json"
 ```
 
----
+______________________________________________________________________
 
 ## Database Implementation
 
 ### Schema
 
-The database schema mirrors the `HardwareModel` Pydantic schema and is defined as SQLAlchemy ORM models in `src/qupboard_graphql/db/models.py`. The table hierarchy is:
+The database schema mirrors the `HardwareModel` Pydantic schema and is defined as SQLAlchemy ORM models in
+`src/qupboard_graphql/db/models.py`. The table hierarchy is:
 
 ```
 hardware_models
@@ -366,11 +408,13 @@ hardware_models
         └── calibratable_pulses  (pulse_role = 'zx_precomp' | 'zx_postcomp', nullable)
 ```
 
-The database URL defaults to `sqlite:///./qupboard.db` and can be overridden with the `DATABASE_URL` environment variable.
+The database URL defaults to `sqlite:///./qupboard.db` and can be overridden with the `DATABASE_URL` environment
+variable.
 
 ### Migrations with Alembic
 
-Schema migrations are managed with [Alembic](https://alembic.sqlalchemy.org/). The Alembic project lives at the **project root**:
+Schema migrations are managed with [Alembic](https://alembic.sqlalchemy.org/). The Alembic project lives at the
+**project root**:
 
 ```
 alembic.ini          # Alembic configuration
@@ -379,7 +423,8 @@ alembic/
 └── versions/        # Migration scripts
 ```
 
-`env.py` automatically reads `DATABASE_URL` from the application settings, so no manual URL configuration is required. `render_as_batch=True` is enabled to support SQLite's limited `ALTER TABLE` capabilities.
+`env.py` automatically reads `DATABASE_URL` from the application settings, so no manual URL configuration is required.
+`render_as_batch=True` is enabled to support SQLite's limited `ALTER TABLE` capabilities.
 
 All commands below assume they are run from the **project root**.
 
