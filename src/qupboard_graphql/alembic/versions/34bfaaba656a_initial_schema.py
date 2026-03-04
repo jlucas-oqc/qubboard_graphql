@@ -1,8 +1,8 @@
 """Initial schema
 
-Revision ID: 877f366d9c8f
+Revision ID: 34bfaaba656a
 Revises:
-Create Date: 2026-03-04 14:40:03.620621
+Create Date: 2026-03-04 15:01:51.617685
 
 """
 
@@ -13,7 +13,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = "877f366d9c8f"
+revision: str = "34bfaaba656a"
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -63,8 +63,34 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("uuid"),
     )
     op.create_table(
-        "qubit_pulse_channels",
+        "drive_pulse_channels",
         sa.Column("uuid", sa.Uuid(), nullable=False),
+        sa.Column("frequency", sa.Float(), nullable=True),
+        sa.Column("imbalance", sa.Float(), nullable=False),
+        sa.Column("phase_iq_offset", sa.Float(), nullable=False),
+        sa.Column("scale_real", sa.Float(), nullable=False),
+        sa.Column("scale_imag", sa.Float(), nullable=False),
+        sa.Column("qubit_uuid", sa.Uuid(), nullable=True),
+        sa.ForeignKeyConstraint(
+            ["qubit_uuid"],
+            ["qubits.uuid"],
+        ),
+        sa.PrimaryKeyConstraint("uuid"),
+    )
+    op.create_table(
+        "qubit_pulse_channels_base",
+        sa.Column("uuid", sa.Uuid(), nullable=False),
+        sa.Column("role", sa.String(), nullable=False),
+        sa.Column("frequency", sa.Float(), nullable=True),
+        sa.Column("imbalance", sa.Float(), nullable=False),
+        sa.Column("phase_iq_offset", sa.Float(), nullable=False),
+        sa.Column("scale_real", sa.Float(), nullable=False),
+        sa.Column("scale_imag", sa.Float(), nullable=False),
+        sa.Column("ss_active", sa.Boolean(), nullable=False),
+        sa.Column("ss_delay", sa.Float(), nullable=False),
+        sa.Column("fs_active", sa.Boolean(), nullable=False),
+        sa.Column("fs_amp", sa.Float(), nullable=False),
+        sa.Column("fs_phase", sa.Float(), nullable=False),
         sa.Column("qubit_uuid", sa.Uuid(), nullable=True),
         sa.ForeignKeyConstraint(
             ["qubit_uuid"],
@@ -111,21 +137,6 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("uuid"),
     )
     op.create_table(
-        "drive_pulse_channels",
-        sa.Column("uuid", sa.Uuid(), nullable=False),
-        sa.Column("frequency", sa.Float(), nullable=True),
-        sa.Column("imbalance", sa.Float(), nullable=False),
-        sa.Column("phase_iq_offset", sa.Float(), nullable=False),
-        sa.Column("scale_real", sa.Float(), nullable=False),
-        sa.Column("scale_imag", sa.Float(), nullable=False),
-        sa.Column("qubit_pulse_channels_uuid", sa.Uuid(), nullable=True),
-        sa.ForeignKeyConstraint(
-            ["qubit_pulse_channels_uuid"],
-            ["qubit_pulse_channels.uuid"],
-        ),
-        sa.PrimaryKeyConstraint("uuid"),
-    )
-    op.create_table(
         "physical_channels",
         sa.Column("uuid", sa.Uuid(), nullable=False),
         sa.Column("channel_kind", sa.String(), nullable=False),
@@ -147,7 +158,29 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("uuid"),
     )
     op.create_table(
-        "qubit_pulse_channels_base",
+        "reset_pulse_channels",
+        sa.Column("uuid", sa.Uuid(), nullable=False),
+        sa.Column("reset_kind", sa.String(), nullable=False),
+        sa.Column("frequency", sa.Float(), nullable=True),
+        sa.Column("imbalance", sa.Float(), nullable=False),
+        sa.Column("phase_iq_offset", sa.Float(), nullable=False),
+        sa.Column("scale_real", sa.Float(), nullable=False),
+        sa.Column("scale_imag", sa.Float(), nullable=False),
+        sa.Column("delay", sa.Float(), nullable=False),
+        sa.Column("qubit_uuid", sa.Uuid(), nullable=True),
+        sa.Column("resonator_uuid", sa.Uuid(), nullable=True),
+        sa.ForeignKeyConstraint(
+            ["qubit_uuid"],
+            ["qubits.uuid"],
+        ),
+        sa.ForeignKeyConstraint(
+            ["resonator_uuid"],
+            ["resonators.uuid"],
+        ),
+        sa.PrimaryKeyConstraint("uuid"),
+    )
+    op.create_table(
+        "resonator_pulse_channels_base",
         sa.Column("uuid", sa.Uuid(), nullable=False),
         sa.Column("role", sa.String(), nullable=False),
         sa.Column("frequency", sa.Float(), nullable=True),
@@ -155,21 +188,6 @@ def upgrade() -> None:
         sa.Column("phase_iq_offset", sa.Float(), nullable=False),
         sa.Column("scale_real", sa.Float(), nullable=False),
         sa.Column("scale_imag", sa.Float(), nullable=False),
-        sa.Column("ss_active", sa.Boolean(), nullable=False),
-        sa.Column("ss_delay", sa.Float(), nullable=False),
-        sa.Column("fs_active", sa.Boolean(), nullable=False),
-        sa.Column("fs_amp", sa.Float(), nullable=False),
-        sa.Column("fs_phase", sa.Float(), nullable=False),
-        sa.Column("qubit_pulse_channels_uuid", sa.Uuid(), nullable=True),
-        sa.ForeignKeyConstraint(
-            ["qubit_pulse_channels_uuid"],
-            ["qubit_pulse_channels.uuid"],
-        ),
-        sa.PrimaryKeyConstraint("uuid"),
-    )
-    op.create_table(
-        "resonator_pulse_channels",
-        sa.Column("uuid", sa.Uuid(), nullable=False),
         sa.Column("resonator_uuid", sa.Uuid(), nullable=True),
         sa.ForeignKeyConstraint(
             ["resonator_uuid"],
@@ -186,55 +204,6 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(
             ["physical_channel_uuid"],
             ["physical_channels.uuid"],
-        ),
-        sa.PrimaryKeyConstraint("uuid"),
-    )
-    op.create_table(
-        "iq_voltage_biases",
-        sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
-        sa.Column("bias", sa.String(), nullable=False),
-        sa.Column("physical_channel_uuid", sa.Uuid(), nullable=True),
-        sa.ForeignKeyConstraint(
-            ["physical_channel_uuid"],
-            ["physical_channels.uuid"],
-        ),
-        sa.PrimaryKeyConstraint("id"),
-    )
-    op.create_table(
-        "reset_pulse_channels",
-        sa.Column("uuid", sa.Uuid(), nullable=False),
-        sa.Column("reset_kind", sa.String(), nullable=False),
-        sa.Column("frequency", sa.Float(), nullable=True),
-        sa.Column("imbalance", sa.Float(), nullable=False),
-        sa.Column("phase_iq_offset", sa.Float(), nullable=False),
-        sa.Column("scale_real", sa.Float(), nullable=False),
-        sa.Column("scale_imag", sa.Float(), nullable=False),
-        sa.Column("delay", sa.Float(), nullable=False),
-        sa.Column("qubit_pulse_channels_uuid", sa.Uuid(), nullable=True),
-        sa.Column("resonator_pulse_channels_uuid", sa.Uuid(), nullable=True),
-        sa.ForeignKeyConstraint(
-            ["qubit_pulse_channels_uuid"],
-            ["qubit_pulse_channels.uuid"],
-        ),
-        sa.ForeignKeyConstraint(
-            ["resonator_pulse_channels_uuid"],
-            ["resonator_pulse_channels.uuid"],
-        ),
-        sa.PrimaryKeyConstraint("uuid"),
-    )
-    op.create_table(
-        "resonator_pulse_channels_base",
-        sa.Column("uuid", sa.Uuid(), nullable=False),
-        sa.Column("role", sa.String(), nullable=False),
-        sa.Column("frequency", sa.Float(), nullable=True),
-        sa.Column("imbalance", sa.Float(), nullable=False),
-        sa.Column("phase_iq_offset", sa.Float(), nullable=False),
-        sa.Column("scale_real", sa.Float(), nullable=False),
-        sa.Column("scale_imag", sa.Float(), nullable=False),
-        sa.Column("resonator_pulse_channels_uuid", sa.Uuid(), nullable=True),
-        sa.ForeignKeyConstraint(
-            ["resonator_pulse_channels_uuid"],
-            ["resonator_pulse_channels.uuid"],
         ),
         sa.PrimaryKeyConstraint("uuid"),
     )
@@ -305,26 +274,35 @@ def upgrade() -> None:
         ),
         sa.PrimaryKeyConstraint("id"),
     )
+    op.create_table(
+        "iq_voltage_biases",
+        sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
+        sa.Column("bias", sa.String(), nullable=False),
+        sa.Column("physical_channel_uuid", sa.Uuid(), nullable=True),
+        sa.ForeignKeyConstraint(
+            ["physical_channel_uuid"],
+            ["physical_channels.uuid"],
+        ),
+        sa.PrimaryKeyConstraint("id"),
+    )
     # ### end Alembic commands ###
 
 
 def downgrade() -> None:
     """Downgrade schema."""
     # ### commands auto generated by Alembic - please adjust! ###
+    op.drop_table("iq_voltage_biases")
     op.drop_table("calibratable_pulses")
     op.drop_table("calibratable_acquires")
+    op.drop_table("basebands")
     op.drop_table("resonator_pulse_channels_base")
     op.drop_table("reset_pulse_channels")
-    op.drop_table("iq_voltage_biases")
-    op.drop_table("basebands")
-    op.drop_table("resonator_pulse_channels")
-    op.drop_table("qubit_pulse_channels_base")
     op.drop_table("physical_channels")
-    op.drop_table("drive_pulse_channels")
     op.drop_table("zx_pi_4_comps")
     op.drop_table("x_pi_2_comps")
     op.drop_table("resonators")
-    op.drop_table("qubit_pulse_channels")
+    op.drop_table("qubit_pulse_channels_base")
+    op.drop_table("drive_pulse_channels")
     op.drop_table("cross_resonance_channels")
     op.drop_table("qubits")
     op.drop_table("hardware_models")

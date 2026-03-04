@@ -38,10 +38,8 @@ from qupboard_graphql.db.models import (
     PhysicalChannelORM,
     QubitORM,
     QubitPulseChannelORM,
-    QubitPulseChannelsORM,
     ResonatorORM,
     ResonatorPulseChannelORM,
-    ResonatorPulseChannelsORM,
     ResetPulseChannelORM,
     XPi2CompORM,
     ZxPi4CompORM,
@@ -175,12 +173,9 @@ def _resonator_orm(resonator: Resonator) -> ResonatorORM:
     return ResonatorORM(
         uuid=resonator.uuid,
         physical_channel=_resonator_physical_channel_orm(resonator.physical_channel),
-        pulse_channels=ResonatorPulseChannelsORM(
-            uuid=resonator.pulse_channels.acquire.uuid,  # reuse one UUID for container
-            measure=_measure_pulse_channel_orm(resonator.pulse_channels.measure),
-            acquire=_acquire_pulse_channel_orm(resonator.pulse_channels.acquire),
-            reset=_reset_pulse_channel_orm(resonator.pulse_channels.reset, "resonator"),
-        ),
+        measure_pulse_channel=_measure_pulse_channel_orm(resonator.pulse_channels.measure),
+        acquire_pulse_channel=_acquire_pulse_channel_orm(resonator.pulse_channels.acquire),
+        reset_pulse_channel=_reset_pulse_channel_orm(resonator.pulse_channels.reset, "resonator"),
     )
 
 
@@ -203,7 +198,10 @@ def _qubit_pulse_channels_orm(
     cross_resonance: dict[int, CrossResonancePulseChannel],
     cross_resonance_cancellation: dict[int, CrossResonanceCancellationPulseChannel],
 ) -> tuple[
-    QubitPulseChannelsORM,
+    DrivePulseChannelORM,
+    QubitPulseChannelORM,
+    QubitPulseChannelORM,
+    ResetPulseChannelORM,
     list[CrossResonanceChannelORM],
     list[CrossResonanceChannelORM],
 ]:
@@ -250,12 +248,7 @@ def _qubit_pulse_channels_orm(
         fs_phase=fs.phase,
     )
 
-    container = QubitPulseChannelsORM(
-        drive=drive_orm,
-        second_state=ss_orm,
-        freq_shift=fs_orm,
-        reset=_reset_pulse_channel_orm(qubit_pulse_channels.reset, "qubit"),
-    )
+    reset_orm = _reset_pulse_channel_orm(qubit_pulse_channels.reset, "qubit")
 
     cr_orms: list[CrossResonanceChannelORM] = []
     for aux_idx, cr in cross_resonance.items():
@@ -290,13 +283,13 @@ def _qubit_pulse_channels_orm(
             )
         )
 
-    return container, cr_orms, crc_orms
+    return drive_orm, ss_orm, fs_orm, reset_orm, cr_orms, crc_orms
 
 
 def _qubit_orm(qubit_key: str, qubit: Qubit) -> QubitORM:
     discriminator_real, discriminator_imag = _scale_parts(qubit.discriminator)
 
-    pulse_channels_container, cr_orms, crc_orms = _qubit_pulse_channels_orm(
+    drive_orm, ss_orm, fs_orm, reset_orm, cr_orms, crc_orms = _qubit_pulse_channels_orm(
         qubit.pulse_channels,
         qubit.pulse_channels.cross_resonance_channels,
         qubit.pulse_channels.cross_resonance_cancellation_channels,
@@ -312,7 +305,10 @@ def _qubit_orm(qubit_key: str, qubit: Qubit) -> QubitORM:
         discriminator_imag=discriminator_imag,
         direct_x_pi=qubit.direct_x_pi,
         physical_channel=_physical_channel_orm(qubit.physical_channel),
-        pulse_channels=pulse_channels_container,
+        drive_pulse_channel=drive_orm,
+        second_state_pulse_channel=ss_orm,
+        freq_shift_pulse_channel=fs_orm,
+        reset_pulse_channel=reset_orm,
         resonator=_resonator_orm(qubit.resonator),
         cross_resonance_channels=cr_orms,
         cross_resonance_cancellation_channels=crc_orms,
@@ -400,9 +396,9 @@ def _reset_pulse_channel_from_orm(orm: ResetPulseChannelORM) -> ResetPulseChanne
     )
 
 
-def _resonator_from_orm(orm) -> Resonator:
-    mpc = orm.pulse_channels.measure
-    apc = orm.pulse_channels.acquire
+def _resonator_from_orm(orm: ResonatorORM) -> Resonator:
+    mpc = orm.measure_pulse_channel
+    apc = orm.acquire_pulse_channel
     return Resonator(
         uuid=orm.uuid,
         physical_channel=_physical_channel_from_orm(orm.physical_channel),
@@ -423,19 +419,19 @@ def _resonator_from_orm(orm) -> Resonator:
                 scale=complex(apc.scale_real, apc.scale_imag),
                 acquire=_acquire_from_orm(apc.acquire),
             ),
-            reset=_reset_pulse_channel_from_orm(orm.pulse_channels.reset),
+            reset=_reset_pulse_channel_from_orm(orm.reset_pulse_channel),
         ),
     )
 
 
 def _qubit_pulse_channels_from_orm(
-    container,
+    qubit_orm: QubitORM,
     cr_orms,
     crc_orms,
 ) -> QubitPulseChannels:
-    drive_orm = container.drive
-    ss_orm = container.second_state
-    fs_orm = container.freq_shift
+    drive_orm = qubit_orm.drive_pulse_channel
+    ss_orm = qubit_orm.second_state_pulse_channel
+    fs_orm = qubit_orm.freq_shift_pulse_channel
 
     cross_resonance = {
         cr.auxiliary_qubit: CrossResonancePulseChannel(
@@ -492,17 +488,17 @@ def _qubit_pulse_channels_from_orm(
             amp=fs_orm.fs_amp,
             phase=fs_orm.fs_phase,
         ),
-        reset=_reset_pulse_channel_from_orm(container.reset),
+        reset=_reset_pulse_channel_from_orm(qubit_orm.reset_pulse_channel),
         cross_resonance_channels=cross_resonance,
         cross_resonance_cancellation_channels=cross_resonance_cancellation,
     )
 
 
-def _qubit_from_orm(orm) -> tuple[str, Qubit]:
+def _qubit_from_orm(orm: QubitORM) -> tuple[str, Qubit]:
     mean_z = json.loads(orm.mean_z_map_args)
     discriminator = complex(orm.discriminator_real, orm.discriminator_imag)
     pulse_channels = _qubit_pulse_channels_from_orm(
-        orm.pulse_channels,
+        orm,
         orm.cross_resonance_channels,
         orm.cross_resonance_cancellation_channels,
     )

@@ -22,10 +22,8 @@ from qupboard_graphql.db.models import (
     PhysicalChannelORM,
     QubitORM,
     QubitPulseChannelORM,
-    QubitPulseChannelsORM,
     ResonatorORM,
     ResonatorPulseChannelORM,
-    ResonatorPulseChannelsORM,
     ResetPulseChannelORM,
     XPi2CompORM,
     ZxPi4CompORM,
@@ -69,16 +67,11 @@ class CalibratablePulse:
 
 @mapper.type(DrivePulseChannelORM)
 class DrivePulseChannel:
-    __exclude__ = ["qubit_pulse_channels"]
+    __exclude__ = ["qubit"]
 
 
 @mapper.type(QubitPulseChannelORM)
 class QubitPulseChannel:
-    __exclude__ = []
-
-
-@mapper.type(QubitPulseChannelsORM)
-class QubitPulseChannels:
     __exclude__ = ["qubit"]
 
 
@@ -94,17 +87,12 @@ class CalibratableAcquire:
 
 @mapper.type(ResonatorPulseChannelORM)
 class ResonatorPulseChannel:
-    __exclude__ = ["resonator_pulse_channels"]
-
-
-@mapper.type(ResonatorPulseChannelsORM)
-class ResonatorPulseChannels:
     __exclude__ = ["resonator"]
 
 
 @mapper.type(ResetPulseChannelORM)
 class ResetPulseChannel:
-    __exclude__ = ["qubit_pulse_channels", "resonator_pulse_channels"]
+    __exclude__ = ["qubit", "resonator"]
 
 
 @mapper.type(XPi2CompORM)

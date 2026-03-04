@@ -181,97 +181,94 @@ The GraphQL API is available at `/graphql`. An interactive GraphiQL IDE is serve
               bias
             }
           }
-          pulseChannels {
+          drivePulseChannel {
             uuid
-            drive {
-              uuid
-              frequency
-              imbalance
-              phaseIqOffset
-              scaleReal
-              scaleImag
-              pulse {
-                id
-                waveformType
-                width
-                amp
-                phase
-                drag
-                rise
-                ampSetup
-                stdDev
-              }
-              pulseXPi {
-                id
-                waveformType
-                width
-                amp
-                phase
-                drag
-                rise
-                ampSetup
-                stdDev
-              }
+            frequency
+            imbalance
+            phaseIqOffset
+            scaleReal
+            scaleImag
+            pulse {
+              id
+              waveformType
+              width
+              amp
+              phase
+              drag
+              rise
+              ampSetup
+              stdDev
             }
-            secondState {
-              uuid
-              role
-              frequency
-              imbalance
-              phaseIqOffset
-              scaleReal
-              scaleImag
-              ssActive
-              ssDelay
-              fsActive
-              fsAmp
-              fsPhase
-              pulse {
-                id
-                waveformType
-                width
-                amp
-                phase
-                drag
-                rise
-                ampSetup
-                stdDev
-              }
+            pulseXPi {
+              id
+              waveformType
+              width
+              amp
+              phase
+              drag
+              rise
+              ampSetup
+              stdDev
             }
-            freqShift {
-              uuid
-              role
-              frequency
-              imbalance
-              phaseIqOffset
-              scaleReal
-              scaleImag
-              ssActive
-              ssDelay
-              fsActive
-              fsAmp
-              fsPhase
+          }
+          secondStatePulseChannel {
+            uuid
+            role
+            frequency
+            imbalance
+            phaseIqOffset
+            scaleReal
+            scaleImag
+            ssActive
+            ssDelay
+            fsActive
+            fsAmp
+            fsPhase
+            pulse {
+              id
+              waveformType
+              width
+              amp
+              phase
+              drag
+              rise
+              ampSetup
+              stdDev
             }
-            reset {
-              uuid
-              resetKind
-              frequency
-              imbalance
-              phaseIqOffset
-              scaleReal
-              scaleImag
-              delay
-              pulse {
-                id
-                waveformType
-                width
-                amp
-                phase
-                drag
-                rise
-                ampSetup
-                stdDev
-              }
+          }
+          freqShiftPulseChannel {
+            uuid
+            role
+            frequency
+            imbalance
+            phaseIqOffset
+            scaleReal
+            scaleImag
+            ssActive
+            ssDelay
+            fsActive
+            fsAmp
+            fsPhase
+          }
+          resetPulseChannel {
+            uuid
+            resetKind
+            frequency
+            imbalance
+            phaseIqOffset
+            scaleReal
+            scaleImag
+            delay
+            pulse {
+              id
+              waveformType
+              width
+              amp
+              phase
+              drag
+              rise
+              ampSetup
+              stdDev
             }
           }
           crossResonanceChannels {
@@ -333,64 +330,61 @@ The GraphQL API is available at `/graphql`. An interactive GraphiQL IDE is serve
                 bias
               }
             }
-            pulseChannels {
+            measurePulseChannel {
               uuid
-              measure {
-                uuid
-                role
-                frequency
-                imbalance
-                phaseIqOffset
-                scaleReal
-                scaleImag
-                pulse {
-                  id
-                  waveformType
-                  width
-                  amp
-                  phase
-                  drag
-                  rise
-                  ampSetup
-                  stdDev
-                }
+              role
+              frequency
+              imbalance
+              phaseIqOffset
+              scaleReal
+              scaleImag
+              pulse {
+                id
+                waveformType
+                width
+                amp
+                phase
+                drag
+                rise
+                ampSetup
+                stdDev
               }
+            }
+            acquirePulseChannel {
+              uuid
+              role
+              frequency
+              imbalance
+              phaseIqOffset
+              scaleReal
+              scaleImag
               acquire {
-                uuid
-                role
-                frequency
-                imbalance
-                phaseIqOffset
-                scaleReal
-                scaleImag
-                acquire {
-                  id
-                  delay
-                  width
-                  sync
-                  useWeights
-                }
-              }
-              reset {
-                uuid
-                resetKind
-                frequency
-                imbalance
-                phaseIqOffset
-                scaleReal
-                scaleImag
+                id
                 delay
-                pulse {
-                  id
-                  waveformType
-                  width
-                  amp
-                  phase
-                  drag
-                  rise
-                  ampSetup
-                  stdDev
-                }
+                width
+                sync
+                useWeights
+              }
+            }
+            resetPulseChannel {
+              uuid
+              resetKind
+              frequency
+              imbalance
+              phaseIqOffset
+              scaleReal
+              scaleImag
+              delay
+              pulse {
+                id
+                waveformType
+                width
+                amp
+                phase
+                drag
+                rise
+                ampSetup
+                stdDev
               }
             }
           }
@@ -504,22 +498,21 @@ hardware_models
     ├── physical_channels               (channel_kind = 'qubit' | 'resonator')
     │   ├── basebands
     │   └── iq_voltage_biases
-    ├── qubit_pulse_channels
-    │   ├── drive_pulse_channels        + calibratable_pulses (pulse / pulse_x_pi)
-    │   ├── qubit_pulse_channels_base   (role = 'second_state' | 'freq_shift')
-    │   │   └── calibratable_pulses     (second_state only)
-    │   └── reset_pulse_channels        (reset_kind = 'qubit') + calibratable_pulses
+    ├── drive_pulse_channels            + calibratable_pulses (pulse / pulse_x_pi)
+    ├── qubit_pulse_channels_base       (role = 'second_state' | 'freq_shift')
+    │   └── calibratable_pulses         (second_state only)
+    ├── reset_pulse_channels            (reset_kind = 'qubit') + calibratable_pulses
     ├── cross_resonance_channels        (role = 'cr' | 'crc')
     │   └── calibratable_pulses         (role='cr' rows only)
     ├── x_pi_2_comps
     ├── zx_pi_4_comps                   (one per CR pair)
     │   └── calibratable_pulses         (pulse_precomp / pulse_postcomp, nullable)
     └── resonators
-        └── resonator_pulse_channels
-            ├── resonator_pulse_channels_base  (role = 'measure' | 'acquire')
-            │   ├── calibratable_pulses         (role='measure' rows only)
-            │   └── calibratable_acquires       (role='acquire' rows only)
-            └── reset_pulse_channels    (reset_kind = 'resonator') + calibratable_pulses
+        ├── physical_channels           (channel_kind = 'resonator')
+        ├── resonator_pulse_channels_base  (role = 'measure' | 'acquire')
+        │   ├── calibratable_pulses     (role='measure' rows only)
+        │   └── calibratable_acquires   (role='acquire' rows only)
+        └── reset_pulse_channels        (reset_kind = 'resonator') + calibratable_pulses
 ```
 
 The database URL defaults to `sqlite:///./qupboard.db` and can be overridden with the `DATABASE_URL` environment variable.
