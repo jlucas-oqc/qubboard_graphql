@@ -37,6 +37,11 @@ qupboard = "qupboard_graphql.main:main"
 [tool.poetry]
 packages = [{include = "qupboard_graphql", from = "src"}]
 
+[tool.pytest.ini_options]
+filterwarnings = [
+    "ignore::DeprecationWarning:strawberry_sqlalchemy_mapper",
+]
+
 [tool.ruff]
 # Allow lines to be as long as 120.
 line-length = 120

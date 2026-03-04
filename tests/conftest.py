@@ -39,7 +39,7 @@ def hardware_model_uuid(test_client, raw_calibration):
     return model_uuid
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture()
 def db_engine():
     """
     Create a single in-memory SQLite engine for the whole test session and
@@ -63,7 +63,9 @@ def db_session(db_engine) -> Session:
     """
     connection = db_engine.connect()
     transaction = connection.begin()
-    TestingSessionLocal = sessionmaker(bind=connection, autocommit=False, autoflush=False)
+    TestingSessionLocal = sessionmaker(
+        bind=connection, autocommit=False, autoflush=False, join_transaction_mode="create_savepoint"
+    )
     session = TestingSessionLocal()
 
     yield session
