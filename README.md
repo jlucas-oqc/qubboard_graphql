@@ -23,7 +23,7 @@ ______________________________________________________________________
 - [Project Structure](#project-structure)
 - [Architecture](#architecture)
 - [Known Limitations / Not Implemented](#known-limitations--not-implemented)
-- [Downloading the GraphQL Schema](#downloading-the-graphql-schema)
+- [GraphQL Client Access](#graphql-client-access)
 - [Example Queries](#example-queries)
 - [Database Implementation](#database-implementation)
 - [Database Migrations with Alembic](#database-migrations-with-alembic)
@@ -360,24 +360,25 @@ well-structured error responses with appropriate HTTP status codes, and equivale
 
 ______________________________________________________________________
 
-## Downloading the GraphQL Schema
+## GraphQL Client Access
 
-For general playing, it's best to simply use the interactive GraphiQL IDE at
-`http://localhost:8000/graphql` to explore the schema and test queries. However, for programmatic
-access to the schema (e.g. for code generation or client development), there are several ways to
-download it from the GraphQL endpoint once the server is running.
+### Interactive IDE
 
-### Option 1 – Strawberry CLI (recommended)
+The easiest way to explore the schema and test queries is the interactive GraphiQL IDE served at
+`http://localhost:8000/graphql` in a browser.
 
-Strawberry can export the schema directly from the Python module without starting the server:
+### Downloading the Schema
+
+For programmatic access (e.g. for code generation or client development), there are several ways to
+obtain the schema.
+
+**Option 1 – Strawberry CLI (recommended, no server required)**
 
 ```bash
 poetry run strawberry export-schema qupboard_graphql.api.graphql:schema
 ```
 
-### Option 2 – Introspection query via `curl`
-
-Send a standard GraphQL introspection query to the running server:
+**Option 2 – Introspection query via `curl`**
 
 ```bash
 curl -s -X POST http://localhost:8000/graphql \
@@ -385,7 +386,7 @@ curl -s -X POST http://localhost:8000/graphql \
      -d '{"query": "{ __schema { types { name } } }"}' | jq
 ```
 
-To retrieve the full schema definition, use the standard introspection query:
+For the full schema definition:
 
 ```bash
 curl -s -X POST http://localhost:8000/graphql \
@@ -396,6 +397,19 @@ curl -s -X POST http://localhost:8000/graphql \
 }
 EOF
 ```
+
+### Python Client Libraries
+
+The `/graphql` endpoint is standard GraphQL-over-HTTP — any Python GraphQL client works without
+access to the server source. Below is a table of popular Python GraphQL clients and their features
+relevant to this schema. All support basic query execution and schema introspection; the differences
+lie in transport options, local schema validation, and code generation capabilities.
+
+| Library                                                           | Sync | Async | Introspection      | Notes                                                                                                                                                                                                                                                           |
+| ----------------------------------------------------------------- | ---- | ----- | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [gql](https://gql.readthedocs.io/)                                | ✅   | ✅    | ✅ runtime         | <ul><li>Most widely used Python GraphQL client</li><li>Multiple transports: HTTP, WebSocket, aiohttp</li><li>Validates queries against the live schema locally before sending</li><li>No generated types</li></ul>                                              |
+| [strawberry-graphql](https://strawberry.rocks/docs/guides/client) | ✅   | ✅    | ❌                 | <ul><li>Minimal built-in HTTP client</li><li>No transport abstraction or local schema validation</li><li>Convenient if Strawberry is already a dependency; otherwise prefer `gql`</li></ul>                                                                     |
+| [ariadne-codegen](https://github.com/mirumee/ariadne-codegen)     | ✅   | ✅    | ✅ at codegen time | <ul><li>Generates a fully typed, dataclass-based client from <code>.graphql</code> query files</li><li>Full IDE auto-complete and static analysis</li><li>Requires a code-generation step</li><li>Generated code must be kept in sync with the schema</li></ul> |
 
 ## Example Queries
 
