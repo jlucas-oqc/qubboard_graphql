@@ -11,6 +11,9 @@ both a GraphQL and a REST API. It is built with:
 - **[Alembic](https://alembic.sqlalchemy.org/)** – database schema migrations
 - **[Pydantic](https://docs.pydantic.dev/)** – request/response validation and serialisation
 
+Exact versions for all dependencies are declared in [`pyproject.toml`](pyproject.toml) and pinned in
+`poetry.lock`. The installation step below will install everything automatically.
+
 The default backing store is SQLite (`qupboard.db`), configured via the `DATABASE_URL` environment
 variable, but because we use SQLAlchemy, many other database engines may be used (postgres, MySQL,
 MariaDB etc).

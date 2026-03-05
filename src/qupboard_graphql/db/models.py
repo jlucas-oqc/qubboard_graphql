@@ -78,10 +78,29 @@ class HardwareModelORM(RepositoryMixin, Base):
 
 
 class PhysicalChannelORM(Base):
-    """Covers both qubit PhysicalChannel and resonator PhysicalChannel.
+    """Unified physical channel row covering both qubit and resonator channels.
 
-    channel_kind: 'qubit' | 'resonator'
-    swap_readout_iq is only meaningful when channel_kind == 'resonator'.
+    A single table (``physical_channels``) stores physical channels for both
+    qubits and resonators, discriminated by *channel_kind*.  The inlined
+    ``BaseBand`` and ``IQVoltageBias`` Pydantic fields are flattened into
+    columns here rather than in separate tables.
+
+    Attributes:
+        uuid: UUID primary key (shared with the Pydantic schema's UUID).
+        channel_kind: ``"qubit"`` or ``"resonator"`` — identifies the owner type.
+        name_index: Hardware name index used to address the physical port.
+        block_size: Waveform block size in samples.
+        default_amplitude: Default output amplitude in hardware units.
+        switch_box: Switch-box identifier string.
+        swap_readout_iq: Whether to swap I and Q for readout (resonator only).
+        baseband_uuid: UUID of the inlined baseband oscillator.
+        baseband_frequency: Baseband carrier frequency in Hz.
+        baseband_if_frequency: Intermediate frequency in Hz.
+        iq_bias: Serialised IQ voltage bias correction string.
+        qubit_uuid: FK to :class:`QubitORM` (set when ``channel_kind = "qubit"``).
+        resonator_uuid: FK to :class:`ResonatorORM` (set when ``channel_kind = "resonator"``).
+        qubit: Relationship to the owning :class:`QubitORM`.
+        resonator: Relationship to the owning :class:`ResonatorORM`.
     """
 
     __tablename__ = "physical_channels"
@@ -271,10 +290,26 @@ class PulseChannelORM(Base):
 
 
 class CrossResonanceChannelORM(Base):
-    """Covers both CrossResonancePulseChannel and CrossResonanceCancellationPulseChannel.
+    """Unified cross-resonance channel row covering both CR and CRC channels.
 
-    role: 'cr' | 'crc'
-    zx_pi_4_pulse is only populated when role == 'cr'.
+    A single table (``cross_resonance_channels``) stores both
+    CrossResonancePulseChannel (role ``"cr"``) and
+    CrossResonanceCancellationPulseChannel (role ``"crc"``) rows.
+    The ``zx_pi_4_pulse`` relationship is only populated for ``"cr"`` rows.
+
+    Attributes:
+        uuid: UUID primary key.
+        role: ``"cr"`` for a cross-resonance channel or ``"crc"`` for a
+            cross-resonance cancellation channel.
+        auxiliary_qubit: Index of the auxiliary (target) qubit in the CR pair.
+        frequency: Carrier frequency in Hz (``None`` encodes NaN).
+        imbalance: IQ imbalance correction factor.
+        phase_iq_offset: IQ phase offset in radians.
+        scale_real: Real part of the complex scale factor.
+        scale_imag: Imaginary part of the complex scale factor.
+        qubit_uuid: FK to the owning :class:`QubitORM`.
+        qubit: Relationship to the owning :class:`QubitORM`.
+        zx_pi_4_pulse: ZX-π/4 calibration pulse (CR role only).
     """
 
     __tablename__ = "cross_resonance_channels"

@@ -278,7 +278,15 @@ class AcquirePulseChannel(ResonatorPulseChannel):
 
 
 class MeasureAcquirePulseChannel(MeasurePulseChannel, AcquirePulseChannel):
-    """Combined measure and acquire pulse channel (legacy compatibility class)."""
+    """Combined measure-and-acquire pulse channel retained for backwards compatibility.
+
+    Earlier versions of the schema represented measurement and acquisition as a
+    single combined channel.  The current schema separates them into
+    :class:`MeasurePulseChannel` and :class:`AcquirePulseChannel` held inside a
+    :class:`ResonatorPulseChannels` container.  This class is kept so that
+    serialised payloads written against the old schema can still be deserialised;
+    it should not be used for new code.
+    """
 
     ...
 
