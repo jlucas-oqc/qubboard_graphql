@@ -122,17 +122,19 @@ qupboard_graphql/
 │   └── qupboard_graphql/
 │       ├── main.py                 # Entrypoint – starts uvicorn on 0.0.0.0:8000
 │       ├── config.py               # Pydantic settings (DATABASE_URL, API paths)
-        ├── api/
-        │   ├── app.py              # FastAPI application factory
-        │   ├── graphql_types.py    # Strawberry type declarations (mapper + @mapper.type classes)
-        │   ├── graphql.py          # Query resolvers, schema, and GraphQL router
-        │   └── rest.py             # REST router (CRUD for hardware models)
-        ├── db/
-        │   ├── database.py         # SQLAlchemy DeclarativeBase
-        │   ├── repository.py       # RepositoryMixin (get_by_uuid, get_all_pks)
-        │   ├── models.py           # ORM models mirroring the hardware model schema
-        │   ├── mapper.py           # ORM ↔ Pydantic conversion helpers
-        │   └── session.py          # Engine, SessionLocal, and get_db dependency
+│       ├── api/
+│       │   ├── app.py              # FastAPI application factory
+│       │   ├── graphql_types.py    # Strawberry type declarations (StrawberrySQLAlchemyMapper + @mapper.type classes)
+│       │   ├── graphql.py          # Query resolvers, schema, and GraphQL router
+│       │   ├── rest.py             # REST router (CRUD for hardware models)
+│       │   └── root.py             # Health-check and root redirect routes
+│       ├── db/
+│       │   ├── database.py         # SQLAlchemy DeclarativeBase
+│       │   ├── repository.py       # RepositoryMixin (get_by_uuid, get_all_pks)
+│       │   ├── models.py           # ORM models mirroring the hardware model schema
+│       │   ├── mapper_from_orm.py  # ORM → Pydantic conversion helpers
+│       │   ├── mapper_to_orm.py    # Pydantic → ORM conversion helpers
+│       │   └── session.py          # Engine, SessionLocal, and get_db dependency
 │       └── schemas/
 │           └── hardware_model.py   # Pydantic schema for HardwareModel
 └── tests/
@@ -144,13 +146,73 @@ qupboard_graphql/
 
 ______________________________________________________________________
 
+## Architecture
+
+### Layers
+
+The application is split into four distinct layers that communicate in one direction only:
+
+```mermaid
+flowchart TD
+    Client(["HTTP Client"])
+
+    subgraph api ["api/"]
+        REST["rest.py"]
+        GQL["graphql.py + graphql_types.py"]
+    end
+
+    subgraph schemas ["schemas/"]
+        HM["hardware_model.py\n(Pydantic models)"]
+    end
+
+    subgraph db ["db/"]
+        TO["mapper_to_orm.py\nPydantic → ORM"]
+        FROM["mapper_from_orm.py\nORM → Pydantic"]
+        ORM["models.py\n(SQLAlchemy ORM)\nrepository.py · session.py"]
+    end
+
+    DB[("SQLite / PostgreSQL / …")]
+
+    Client --> REST
+    Client --> GQL
+    REST -->|"writes via"| HM
+    HM --> TO
+    TO --> ORM
+    ORM --> FROM
+    FROM -->|"reads via"| HM
+    GQL -->|"reads directly\n(strawberry-sqlalchemy-mapper)"| ORM
+    ORM <--> DB
+```
+
+### Request flow
+
+**REST write** (`POST /rest/logical-hardware`):
+
+1. FastAPI parses the JSON body into a Pydantic `HardwareModel`.
+1. `mapper_to_orm` converts it into a tree of SQLAlchemy ORM objects.
+1. The ORM objects are committed to the database and the new UUID is returned.
+
+**REST read** (`GET /rest/logical-hardware/{uuid}`):
+
+1. `HardwareModelORM.get_by_uuid` fetches the row (and all related rows via eager-loaded relationships).
+1. `mapper_from_orm` reconstructs the full Pydantic `HardwareModel` and FastAPI serialises it to JSON.
+
+**GraphQL read** (`getCalibration`, `getAllCalibrations`):
+
+1. Strawberry calls the resolver, which fetches the ORM row(s) directly.
+1. `strawberry-sqlalchemy-mapper` translates the ORM objects into Strawberry types on the fly — no manual mapping step
+   required.
+
+The GraphQL path therefore bypasses the Pydantic `schemas/` layer entirely; the Pydantic layer is only used by the REST
+API and the ORM mappers.
+
+______________________________________________________________________
+
 ## Downloading the GraphQL Schema
 
 For general playing, it's best to simply use the interactive GraphiQL IDE at `http://localhost:8000/graphql` to explore
 the schema and test queries. However, for programmatic access to the schema (e.g. for code generation or client
-development),
-
-There are several ways to download the schema from the GraphQL endpoint once the server is running.
+development), there are several ways to download it from the GraphQL endpoint once the server is running.
 
 ### Option 1 – Strawberry CLI (recommended)
 
@@ -186,7 +248,7 @@ EOF
 
 ### GraphQL
 
-The GraphQL API is available at `/graphql`. An interactive GraphiQL IDE is served at the same path in a browser.
+The GraphQL API is available at `/graphql`. An interactive GraphQL IDE is served at the same path in a browser.
 
 **Fetch a calibration by ID**
 
@@ -393,6 +455,18 @@ The GraphQL API is available at `/graphql`. An interactive GraphiQL IDE is serve
 ```graphql
 {
   getAllHardwareModelIds
+}
+```
+
+**Fetch all calibrations**
+
+```graphql
+{
+  getAllCalibrations {
+    id
+    version
+    calibrationId
+  }
 }
 ```
 
