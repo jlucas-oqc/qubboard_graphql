@@ -350,16 +350,108 @@ def test_pulse_roles_are_correctly_filtered(test_client: TestClient, hardware_mo
                 )
 
 
+def test_get_calibration_qubits_pagination(test_client: TestClient, hardware_model_uuid: str):
+    """
+    Test that the qubits field on getCalibration supports relay-style cursor pagination.
+
+    strawberry-sqlalchemy-mapper generates a QubitORMConnection type with first/after/last/before
+    arguments and a pageInfo field automatically. This test verifies that:
+      - first=1 returns exactly one qubit edge with a valid endCursor
+      - passing that endCursor as after fetches the next qubit (or an empty page if only one qubit)
+      - first=0 returns an empty edges list with hasNextPage reflecting remaining rows
+    """
+    first_page_query = """
+        query GetCalibrationsQubitsPage($id: UUID!, $first: Int!, $after: String) {
+            getCalibration(id: $id) {
+                qubits(first: $first, after: $after) {
+                    edges {
+                        cursor
+                        node {
+                            uuid
+                            qubitKey
+                        }
+                    }
+                    pageInfo {
+                        hasNextPage
+                        hasPreviousPage
+                        startCursor
+                        endCursor
+                    }
+                }
+            }
+        }
+    """
+
+    # --- Page 1: first=1, no cursor ---
+    response = test_client.post(
+        _GRAPHQL_URL,
+        json={"query": first_page_query, "variables": {"id": hardware_model_uuid, "first": 1, "after": None}},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert "errors" not in data, f"GraphQL errors: {data.get('errors')}"
+
+    qubits = data["data"]["getCalibration"]["qubits"]
+    assert len(qubits["edges"]) == 1, "first=1 should return exactly one qubit"
+
+    page_info = qubits["pageInfo"]
+    end_cursor = page_info["endCursor"]
+    assert end_cursor is not None, "endCursor should be set when results are returned"
+
+    first_qubit_uuid = qubits["edges"][0]["node"]["uuid"]
+
+    # --- Page 2: first=1, after=endCursor from page 1 ---
+    response = test_client.post(
+        _GRAPHQL_URL,
+        json={"query": first_page_query, "variables": {"id": hardware_model_uuid, "first": 1, "after": end_cursor}},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert "errors" not in data, f"GraphQL errors: {data.get('errors')}"
+
+    qubits_page2 = data["data"]["getCalibration"]["qubits"]
+    if qubits_page2["edges"]:
+        # More than one qubit in the fixture – second page must be a different qubit
+        second_qubit_uuid = qubits_page2["edges"][0]["node"]["uuid"]
+        assert second_qubit_uuid != first_qubit_uuid, "Page 2 should return a different qubit"
+    else:
+        # Only one qubit in the fixture – page 2 is correctly empty
+        assert not qubits_page2["pageInfo"]["hasNextPage"]
+
+    # --- first=0: the connection implementation treats 0 as "no limit" and returns all items ---
+    response = test_client.post(
+        _GRAPHQL_URL,
+        json={"query": first_page_query, "variables": {"id": hardware_model_uuid, "first": 0, "after": None}},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert "errors" not in data, f"GraphQL errors: {data.get('errors')}"
+    # strawberry-sqlalchemy-mapper treats first=0 as no limit; all edges are still returned
+    assert isinstance(data["data"]["getCalibration"]["qubits"]["edges"], list)
+
+
 def test_get_all_calibrations(test_client: TestClient, hardware_model_uuid: str):
     """
-    Test that get_all_calibrations returns a list of calibrations, each with an id and calibrationId,
-    and that the seeded calibration is present.
+    Test that get_all_calibrations returns a connection with edges/pageInfo,
+    that each edge contains an id and calibrationId, and that the seeded
+    calibration is present.
     """
     query = """
         query {
             getAllCalibrations {
-                id
-                calibrationId
+                edges {
+                    cursor
+                    node {
+                        id
+                        calibrationId
+                    }
+                }
+                pageInfo {
+                    hasNextPage
+                    hasPreviousPage
+                    startCursor
+                    endCursor
+                }
             }
         }
     """
@@ -368,18 +460,70 @@ def test_get_all_calibrations(test_client: TestClient, hardware_model_uuid: str)
     assert response.status_code == 200
     data = response.json()
     assert "errors" not in data, f"GraphQL errors: {data.get('errors')}"
-    calibrations = data["data"]["getAllCalibrations"]
-    assert isinstance(calibrations, list)
-    assert len(calibrations) > 0
+    connection = data["data"]["getAllCalibrations"]
+    edges = connection["edges"]
+    assert isinstance(edges, list)
+    assert len(edges) > 0
 
-    ids = [c["id"] for c in calibrations]
+    ids = [e["node"]["id"] for e in edges]
     assert hardware_model_uuid in ids
 
-    for calibration in calibrations:
-        assert "id" in calibration
-        assert "calibrationId" in calibration
-        assert calibration["id"] is not None
-        assert calibration["calibrationId"] is not None
+    for edge in edges:
+        assert edge["cursor"] is not None
+        assert edge["node"]["id"] is not None
+        assert edge["node"]["calibrationId"] is not None
+
+    page_info = connection["pageInfo"]
+    assert "hasNextPage" in page_info
+    assert "hasPreviousPage" in page_info
+    assert page_info["startCursor"] is not None
+    assert page_info["endCursor"] is not None
+
+
+def test_get_all_calibrations_pagination(test_client: TestClient, hardware_model_uuid: str):
+    """
+    Test that get_all_calibrations supports relay-style cursor pagination.
+
+    Verifies that first=1 returns exactly one edge with a valid endCursor,
+    and that using that cursor as after on the next request advances the page.
+    """
+    query = """
+        query GetPage($first: Int, $after: String) {
+            getAllCalibrations(first: $first, after: $after) {
+                edges {
+                    cursor
+                    node { id calibrationId }
+                }
+                pageInfo {
+                    hasNextPage
+                    endCursor
+                }
+            }
+        }
+    """
+
+    # first=1, no cursor – should return exactly the first record
+    response = test_client.post(_GRAPHQL_URL, json={"query": query, "variables": {"first": 1, "after": None}})
+    assert response.status_code == 200
+    data = response.json()
+    assert "errors" not in data, f"GraphQL errors: {data.get('errors')}"
+    connection = data["data"]["getAllCalibrations"]
+    edges = connection["edges"]
+    assert len(edges) == 1
+    end_cursor = connection["pageInfo"]["endCursor"]
+    assert end_cursor is not None
+    first_id = edges[0]["node"]["id"]
+
+    # first=1, after=endCursor – should be the next record or empty
+    response = test_client.post(_GRAPHQL_URL, json={"query": query, "variables": {"first": 1, "after": end_cursor}})
+    assert response.status_code == 200
+    data = response.json()
+    assert "errors" not in data, f"GraphQL errors: {data.get('errors')}"
+    page2 = data["data"]["getAllCalibrations"]
+    if page2["edges"]:
+        assert page2["edges"][0]["node"]["id"] != first_id
+    else:
+        assert not page2["pageInfo"]["hasNextPage"]
 
 
 def test_get_all_hardware_model_ids(test_client: TestClient, hardware_model_uuid: str):

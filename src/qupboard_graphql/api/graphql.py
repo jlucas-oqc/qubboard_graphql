@@ -4,6 +4,7 @@ GraphQL query resolvers, schema, and FastAPI router.
 Strawberry type declarations live in graphql_types.py.
 """
 
+from typing import Optional
 from uuid import UUID
 
 import strawberry
@@ -15,6 +16,10 @@ from strawberry_sqlalchemy_mapper import StrawberrySQLAlchemyLoader
 from qupboard_graphql.api.graphql_types import HardwareModel, mapper  # noqa: F401 – mapper.finalize() called there
 from qupboard_graphql.db.models import HardwareModelORM
 from qupboard_graphql.db.session import get_db
+
+# Reuse the relay ListConnection type the mapper generates for relationship fields,
+# ensuring getAllCalibrations uses an identical connection shape to e.g. qubits.
+HardwareModelConnection = mapper._connection_type_for("HardwareModel")
 
 
 async def get_db_context(db: Session = Depends(get_db)) -> dict:
@@ -65,17 +70,41 @@ class Query:
         return HardwareModelORM.get_all_pks(db)
 
     @strawberry.field
-    def get_all_calibrations(self, info: strawberry.types.Info) -> list[HardwareModel]:
-        """Return every hardware model stored in the database.
+    def get_all_calibrations(
+        self,
+        info: strawberry.types.Info,
+        first: Optional[int] = None,
+        after: Optional[str] = None,
+        last: Optional[int] = None,
+        before: Optional[str] = None,
+    ) -> HardwareModelConnection:
+        """Return a paginated connection of all hardware models in the database.
+
+        Supports relay-style cursor pagination via ``first``/``after`` (forward)
+        and ``last``/``before`` (backward), with ``pageInfo`` and per-edge cursors,
+        matching the connection shape used by relationship fields such as ``qubits``.
 
         Args:
             info: Strawberry resolver context carrying the database session.
+            first: Return the first *n* records after ``after``.
+            after: Cursor from a previous ``endCursor`` — start after this position.
+            last: Return the last *n* records before ``before``.
+            before: Cursor from a previous ``startCursor`` — end before this position.
 
         Returns:
-            A list of :class:`HardwareModel` GraphQL objects.
+            A :class:`HardwareModelConnection` containing ``edges``, per-edge
+            ``cursor`` values, and a ``pageInfo`` block.
         """
         db = info.context["db"]
-        return db.query(HardwareModelORM).all()
+        nodes = db.query(HardwareModelORM).all()
+        return HardwareModelConnection.resolve_connection(
+            nodes,
+            info=info,
+            first=first,
+            after=after,
+            last=last,
+            before=before,
+        )
 
 
 schema = strawberry.Schema(Query)
