@@ -353,11 +353,11 @@ class ZxPi4Comp(BaseModel):
     use_rotary: bool = False
 
 
-class Qubit(BaseModel):
+class Qubit(Component):
     """Full calibration record for a single physical qubit.
 
     Attributes:
-        uuid: Unique identifier for this qubit.
+        uuid: Unique identifier inherited from :class:`Component`.
         physical_channel: Physical channel connected to the qubit drive line.
         pulse_channels: All pulse channels owned by this qubit.
         resonator: Coupled readout resonator.
@@ -370,8 +370,6 @@ class Qubit(BaseModel):
         zx_pi_4_comp: Mapping of auxiliary-qubit index to
             :class:`ZxPi4Comp` compensation data.
     """
-
-    uuid: UUID = Field(default_factory=uuid4)
 
     physical_channel: PhysicalChannel
     pulse_channels: QubitPulseChannels
