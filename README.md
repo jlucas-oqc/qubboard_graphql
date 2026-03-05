@@ -11,8 +11,8 @@ both a GraphQL and a REST API. It is built with:
 - **[Alembic](https://alembic.sqlalchemy.org/)** – database schema migrations
 - **[Pydantic](https://docs.pydantic.dev/)** – request/response validation and serialisation
 
-Exact versions for all dependencies are declared in [`pyproject.toml`](pyproject.toml) and pinned in
-`poetry.lock`. The installation step below will install everything automatically.
+Exact versions for all dependencies are declared in `pyproject.toml` and pinned in `poetry.lock`.
+The installation step below will install everything automatically.
 
 The default backing store is SQLite (`qupboard.db`), configured via the `DATABASE_URL` environment
 variable, but because we use SQLAlchemy, many other database engines may be used (postgres, MySQL,
@@ -124,6 +124,34 @@ Run with coverage:
 ```bash
 poetry run pytest --cov=qupboard_graphql --cov-report=term-missing
 ```
+
+### Generating the documentation
+
+The project documentation is built with [MkDocs](https://www.mkdocs.org/) using the
+[Material](https://squidfunk.github.io/mkdocs-material/) theme. API reference pages are generated
+automatically from the in-code docstrings via [mkdocstrings](https://mkdocstrings.github.io/). All
+documentation dependencies are included in the dev dependency group and are installed automatically
+by `poetry install`.
+
+To start a live-reloading local documentation server:
+
+```bash
+poetry run mkdocs serve
+```
+
+The docs are then available at `http://127.0.0.1:8000`. The server watches for changes to both the
+Markdown source files in `docs/` and the Python source files in `src/`, and automatically rebuilds
+the site on any change.
+
+To produce a self-contained static site (output written to `site/`):
+
+```bash
+poetry run mkdocs build
+```
+
+The `site/` directory is excluded from version control via `.gitignore`. The static output can be
+served by any web server or deployed to any static hosting provider (GitHub Pages, GitLab Pages, S3,
+etc.).
 
 ______________________________________________________________________
 

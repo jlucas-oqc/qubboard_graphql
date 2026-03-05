@@ -8,6 +8,7 @@ GraphQL endpoint appears correctly in the generated docs.
 """
 
 from contextlib import asynccontextmanager
+from typing import AsyncGenerator
 
 from fastapi import FastAPI
 from fastapi.openapi.utils import get_openapi
@@ -21,7 +22,7 @@ from qupboard_graphql.db.session import get_engine
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """FastAPI lifespan context manager.
 
     Creates all SQLAlchemy-declared tables on startup and performs any
@@ -70,7 +71,7 @@ def _custom_openapi(app: FastAPI) -> dict:
     return schema
 
 
-def get_app():
+def get_app() -> FastAPI:
     """Create and configure the FastAPI application.
 
     Registers all routers (root, REST, GraphQL) and installs the custom

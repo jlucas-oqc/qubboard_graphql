@@ -8,6 +8,7 @@ FastAPI-compatible generator dependency that yields a per-request
 
 from sqlalchemy import create_engine, Engine
 from sqlalchemy.orm import sessionmaker, Session
+from typing import Generator
 
 from qupboard_graphql.config import settings
 
@@ -34,7 +35,7 @@ def get_engine() -> Engine:
     return _engine
 
 
-def get_db():
+def get_db() -> Generator[Session, None, None]:
     """FastAPI dependency that yields a SQLAlchemy session.
 
     Opens a new session before each request and ensures it is closed

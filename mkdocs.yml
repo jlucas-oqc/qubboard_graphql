@@ -1,0 +1,80 @@
+site_name: qupboard-graphql
+site_description: FastAPI service exposing quantum hardware model calibration data via REST and GraphQL
+repo_url: https://github.com/oqc/qupboard-graphql
+repo_name: oqc/qupboard-graphql
+
+validation:
+  anchors: ignore
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - search.highlight
+    - content.code.copy
+  custom_dir: docs/overrides
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]
+          options:
+            docstring_style: google
+            show_source: true
+            show_root_heading: true
+            show_symbol_type_heading: true
+            members_order: source
+            merge_init_into_class: true
+
+markdown_extensions:
+  - admonition
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.inlinehilite
+  - pymdownx.snippets:
+      base_path: .
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - API Reference:
+    - api/index.md
+    - Application: api/app.md
+    - REST: api/rest.md
+    - GraphQL: api/graphql.md
+    - GraphQL Types: api/graphql_types.md
+    - Root & Health: api/root.md
+  - Database:
+    - db/index.md
+    - Models: db/models.md
+    - Repository: db/repository.md
+    - Session: db/session.md
+    - Pydantic → ORM: db/mapper_to_orm.md
+    - ORM → Pydantic: db/mapper_from_orm.md
+  - Schemas:
+    - schemas/index.md
+    - Hardware Model: schemas/hardware_model.md
+  - Configuration: config.md

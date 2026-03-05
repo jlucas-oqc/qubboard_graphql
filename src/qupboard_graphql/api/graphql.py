@@ -17,7 +17,7 @@ from qupboard_graphql.db.models import HardwareModelORM
 from qupboard_graphql.db.session import get_db
 
 
-async def get_db_context(db: Session = Depends(get_db)):
+async def get_db_context(db: Session = Depends(get_db)) -> dict:
     """FastAPI dependency that builds the Strawberry request context.
 
     Provides a SQLAlchemy session and a :class:`StrawberrySQLAlchemyLoader`
