@@ -17,6 +17,19 @@ MariaDB etc).
 
 ______________________________________________________________________
 
+## Table of Contents
+
+- [Getting Started](#getting-started)
+- [Project Structure](#project-structure)
+- [Architecture](#architecture)
+- [Known Limitations / Not Implemented](#known-limitations--not-implemented)
+- [Downloading the GraphQL Schema](#downloading-the-graphql-schema)
+- [Example Queries](#example-queries)
+- [Database Implementation](#database-implementation)
+- [Database Migrations with Alembic](#database-migrations-with-alembic)
+
+______________________________________________________________________
+
 ## Getting Started
 
 ### Prerequisites
@@ -669,10 +682,28 @@ hardware_models
 The database URL defaults to `sqlite:///./qupboard.db` and can be overridden with the `DATABASE_URL`
 environment variable.
 
-### Migrations with Alembic
+______________________________________________________________________
 
-Schema migrations are managed with [Alembic](https://alembic.sqlalchemy.org/). The Alembic project
-lives at the **project root**:
+## Database Migrations with Alembic
+
+As the application evolves, the database schema needs to evolve with it — new tables are added,
+columns are renamed, types change, and so on. Without a migration tool, keeping the schema in sync
+across development machines, CI environments, and production deployments requires manual
+`ALTER TABLE` statements that are error-prone and hard to reproduce reliably.
+
+[Alembic](https://alembic.sqlalchemy.org/) solves this by treating schema changes as **versioned
+migration scripts** stored alongside the source code. Each migration is a small Python file
+describing how to move the schema forward (`upgrade`) and, optionally, how to reverse that change
+(`downgrade`). Alembic records which migrations have been applied in a `alembic_version` table in
+the database, so it always knows exactly what state the schema is in and which scripts still need to
+run.
+
+Alembic integrates directly with SQLAlchemy, meaning it can **autogenerate** migration scripts by
+comparing the current ORM model definitions against the live database schema — catching additions,
+removals, and type changes automatically, though the generated scripts should always be reviewed
+before committing.
+
+The Alembic project lives at the **project root**:
 
 ```
 alembic.ini          # Alembic configuration
