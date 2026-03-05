@@ -311,15 +311,6 @@ The GraphQL API is currently read-only. A real service would expose **mutations*
 updating, and deleting hardware models, with appropriate input validation mirroring what the REST
 `POST` endpoint does today.
 
-### Pagination
-
-Both `getAllCalibrations` and all relationship collections (`qubits`, `pulseChannels`,
-`crossResonanceChannels`, etc.) use relay-style cursor pagination (`first`, `after`, `last`,
-`before`) and return a connection shape with `edges { cursor node { … } }` and
-`pageInfo { hasNextPage, hasPreviousPage, startCursor, endCursor }`. `getAllCalibrations` fetches
-all rows from the database before slicing in Python; for very large datasets a keyset-based query
-with `LIMIT`/`OFFSET` pushed to the database would be more efficient.
-
 ### Input Validation on the GraphQL Layer
 
 Pydantic validation is only applied on the REST path. GraphQL mutations (once added) should perform

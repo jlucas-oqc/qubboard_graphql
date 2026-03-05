@@ -96,7 +96,9 @@ class Query:
             ``cursor`` values, and a ``pageInfo`` block.
         """
         db = info.context["db"]
-        nodes = db.query(HardwareModelORM).all()
+        # Pass the Query object — resolve_connection slices it as nodes[start:overfetch],
+        # which SQLAlchemy translates to LIMIT/OFFSET SQL rather than fetching all rows.
+        nodes = db.query(HardwareModelORM)
         return HardwareModelConnection.resolve_connection(
             nodes,
             info=info,
