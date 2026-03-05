@@ -30,7 +30,7 @@ Class hierarchy overview::
 """
 
 import math
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field
 
@@ -39,10 +39,11 @@ class Component(BaseModel):
     """Base class for schema objects that carry a UUID identifier.
 
     Attributes:
-        uuid: Unique identifier for this component.
+        uuid: Unique identifier for this component.  Auto-generated when not
+            supplied, so calibration files without UUIDs are accepted.
     """
 
-    uuid: UUID
+    uuid: UUID = Field(default_factory=uuid4)
 
 
 class BaseBand(Component):
@@ -370,7 +371,7 @@ class Qubit(BaseModel):
             :class:`ZxPi4Comp` compensation data.
     """
 
-    uuid: UUID
+    uuid: UUID = Field(default_factory=uuid4)
 
     physical_channel: PhysicalChannel
     pulse_channels: QubitPulseChannels
