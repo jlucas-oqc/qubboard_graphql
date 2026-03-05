@@ -173,6 +173,10 @@ flowchart TD
 
     DB[("SQLite / PostgreSQL / …")]
 
+    api ~~~ schemas
+    schemas ~~~ db
+    db ~~~ DB
+
     Client --> REST
     Client --> GQL
     REST -->|"writes via"| HM
