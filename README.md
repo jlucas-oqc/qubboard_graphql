@@ -11,9 +11,6 @@ both a GraphQL and a REST API. It is built with:
 - **[Alembic](https://alembic.sqlalchemy.org/)** – database schema migrations
 - **[Pydantic](https://docs.pydantic.dev/)** – request/response validation and serialisation
 
-Exact versions for all dependencies are declared in `pyproject.toml` and pinned in `poetry.lock`.
-The installation step below will install everything automatically.
-
 The default backing store is SQLite (`qupboard.db`), configured via the `DATABASE_URL` environment
 variable, but because we use SQLAlchemy, many other database engines may be used (postgres, MySQL,
 MariaDB etc).
@@ -46,7 +43,7 @@ Clone the repository and install all dependencies (including dev dependencies) i
 environment:
 
 ```bash
-git clone <repo-url>
+git clone https://github.com/jlucas-oqc/qubboard_graphql.git
 cd qupboard_graphql
 poetry install --with dev
 ```
