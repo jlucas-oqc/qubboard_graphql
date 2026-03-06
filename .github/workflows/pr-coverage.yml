@@ -55,6 +55,7 @@ jobs:
     name: Aggregate & Report
     runs-on: ubuntu-latest
     needs: test
+    if: always()
     steps:
       - uses: actions/checkout@v4
       - name: Download all JUnit XMLs
@@ -78,6 +79,7 @@ jobs:
     name: Coverage Summary PR Comment
     runs-on: ubuntu-latest
     needs: test
+    if: always()
     steps:
       - name: Download all coverage XMLs
         uses: actions/download-artifact@v4
