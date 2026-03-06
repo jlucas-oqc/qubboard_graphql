@@ -50,27 +50,3 @@ jobs:
         with:
           name: coverage-${{ matrix.python-version }}
           path: reports/coverage-${{ matrix.python-version }}.xml
-
-  report:
-    name: Aggregate & Report
-    runs-on: ubuntu-latest
-    needs: test
-    if: always()
-    steps:
-      - uses: actions/checkout@v4
-      - name: Download all JUnit XMLs
-        uses: actions/download-artifact@v4
-        with:
-          pattern: junit-*
-          path: all-junit
-      - name: Download all coverage XMLs
-        uses: actions/download-artifact@v4
-        with:
-          pattern: coverage-*
-          path: all-cov
-      - name: Publish test results (all Python versions)
-        uses: EnricoMi/publish-unit-test-result-action@v2
-        with:
-          files: all-junit/**/*.xml
-          check_name: Test Results (matrix)
-          github_token: ${{ secrets.GITHUB_TOKEN }}
