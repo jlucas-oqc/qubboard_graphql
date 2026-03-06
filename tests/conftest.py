@@ -22,9 +22,9 @@ from qupboard_graphql.db import session as session_module
 from qupboard_graphql.db.models import HardwareModelORM
 from qupboard_graphql.schemas.hardware_model import HardwareModel
 
-data_path = Path(__file__).parent / "data"
+data_path: Path = Path(__file__).parent / "data"
 
-_JSON_HEADERS = {"Content-Type": "application/json"}
+_JSON_HEADERS: dict[str, str] = {"Content-Type": "application/json"}
 
 
 # ---------------------------------------------------------------------------
@@ -34,23 +34,63 @@ _JSON_HEADERS = {"Content-Type": "application/json"}
 
 @pytest.fixture()
 def db_engine() -> Iterator[Engine]:
-    """Create an isolated in-memory engine per test function."""
+    """Create and tear down an isolated in-memory SQLAlchemy engine.
+
+    Yields:
+        Engine: A per-test SQLite in-memory engine with all ORM tables created.
+    """
     engine: Engine = create_engine(
         "sqlite://",
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
     Base.metadata.create_all(bind=engine)
-    yield engine
-    Base.metadata.drop_all(bind=engine)
-    engine.dispose()
+
+    original_engine: Engine = session_module.engine
+    session_module.engine = engine
+    try:
+        yield engine
+    finally:
+        session_module.engine = original_engine
+        Base.metadata.drop_all(bind=engine)
+        engine.dispose()
 
 
 @pytest.fixture()
-def db_session(db_engine: Engine) -> Iterator[Session]:
-    """Provide a SQLAlchemy session bound to the current test engine."""
-    SessionLocal = sessionmaker(bind=db_engine, autocommit=False, autoflush=False)
-    db: Session = SessionLocal()
+def db_session_factory(db_engine: Engine) -> Iterator[sessionmaker[Session]]:
+    """Build a session factory bound to the test engine and patch app globals.
+
+    Args:
+        db_engine: Per-test SQLAlchemy engine fixture.
+
+    Yields:
+        sessionmaker[Session]: Factory that creates sessions bound to ``db_engine``.
+    """
+    session_factory: sessionmaker[Session] = sessionmaker(
+        bind=db_engine,
+        autocommit=False,
+        autoflush=False,
+    )
+
+    original_session_factory: sessionmaker[Session] = session_module.session_factory
+    session_module.session_factory = session_factory
+    try:
+        yield session_factory
+    finally:
+        session_module.session_factory = original_session_factory
+
+
+@pytest.fixture()
+def db_session(db_session_factory: sessionmaker[Session]) -> Iterator[Session]:
+    """Provide a SQLAlchemy session bound to the current test engine.
+
+    Args:
+        db_session_factory: Session factory fixture bound to the test DB.
+
+    Yields:
+        Session: Open SQLAlchemy session for the current test.
+    """
+    db: Session = db_session_factory()
     try:
         yield db
     finally:
@@ -58,20 +98,19 @@ def db_session(db_engine: Engine) -> Iterator[Session]:
 
 
 @pytest.fixture()
-def app_client(db_engine: Engine) -> Iterator[TestClient]:
+def app_client(db_session_factory: sessionmaker[Session]) -> Iterator[TestClient]:
+    """Create a ``TestClient`` backed by the in-memory test database.
+
+    Args:
+        db_session_factory: Session factory fixture used to ensure DB wiring is patched.
+
+    Yields:
+        TestClient: FastAPI test client with server exceptions enabled.
     """
-    Fixture that creates a clean, new fastapi application using an initialised but empty
-    in-memory database and then yields a TestClient for it.
-    """
-    original_engine: Engine = session_module.engine
-    session_module.engine = db_engine
 
     app = get_app()
-    try:
-        with TestClient(app, raise_server_exceptions=True) as client:
-            yield client
-    finally:
-        session_module.engine = original_engine
+    with TestClient(app, raise_server_exceptions=True) as client:
+        yield client
 
 
 # ---------------------------------------------------------------------------
@@ -81,20 +120,40 @@ def app_client(db_engine: Engine) -> Iterator[TestClient]:
 
 @pytest.fixture(scope="session")
 def raw_calibration() -> str:
-    """Load the raw calibration JSON once for the entire test session."""
+    """Load the calibration JSON payload used in tests.
+
+    Returns:
+        str: Raw JSON string loaded from ``tests/data/calibration_pydantic.json``.
+    """
     with open(data_path / "calibration_pydantic.json") as f:
         return f.read()
 
 
 @pytest.fixture(scope="session")
 def hardware_model(raw_calibration: str) -> HardwareModel:
-    """Parsed and validated HardwareModel, shared across the session."""
+    """Parse and validate a shared ``HardwareModel`` instance.
+
+    Args:
+        raw_calibration: Raw calibration payload fixture.
+
+    Returns:
+        HardwareModel: Parsed model reused across the test session.
+    """
     return HardwareModel.model_validate_json(raw_calibration)
 
 
 @pytest.fixture()
 def hardware_model_uuid(app_client: TestClient, raw_calibration: str, db_session: Session) -> str:
-    """Create a hardware model via REST and return its UUID string."""
+    """Create a hardware model via REST and return its UUID.
+
+    Args:
+        app_client: FastAPI test client fixture.
+        raw_calibration: Raw calibration payload fixture.
+        db_session: SQLAlchemy session fixture.
+
+    Returns:
+        str: UUID of the created hardware model.
+    """
     # Create the model and capture its UUID
     post_response = app_client.post("/rest/logical-hardware", content=raw_calibration, headers=_JSON_HEADERS)
     assert post_response.status_code == 201

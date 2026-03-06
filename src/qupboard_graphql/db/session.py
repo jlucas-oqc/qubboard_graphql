@@ -6,14 +6,38 @@ FastAPI-compatible generator dependency that yields a per-request
 :class:`~sqlalchemy.orm.Session`.
 """
 
-from typing import Generator
+from typing import Any, Generator
 
 from sqlalchemy import create_engine
+from sqlalchemy.engine import Engine
+from sqlalchemy.engine.url import make_url
 from sqlalchemy.orm import Session, sessionmaker
 
 from qupboard_graphql.config import settings
 
-engine = create_engine(settings.DATABASE_URL, connect_args={"check_same_thread": False})
+
+def get_engine(database_url: str | None = None) -> Engine:
+    """Create a SQLAlchemy engine with backend-specific connect args.
+
+    Args:
+        database_url: Optional SQLAlchemy URL. Defaults to ``settings.DATABASE_URL``.
+
+    Returns:
+        Engine: Configured SQLAlchemy engine.
+    """
+    resolved_url = database_url or settings.DATABASE_URL
+    url = make_url(resolved_url)
+    connect_args: dict[str, Any] = {}
+
+    # SQLite needs thread-check disabling for our app/test usage with FastAPI.
+    if url.get_backend_name() == "sqlite":
+        connect_args["check_same_thread"] = False
+
+    return create_engine(resolved_url, connect_args=connect_args)
+
+
+engine = get_engine()
+session_factory = sessionmaker(bind=engine, autocommit=False, autoflush=False)
 
 
 def get_db() -> Generator[Session, None, None]:
@@ -25,8 +49,7 @@ def get_db() -> Generator[Session, None, None]:
     Yields:
         An active :class:`~sqlalchemy.orm.Session` bound to the module engine.
     """
-    SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
-    db: Session = SessionLocal()
+    db: Session = session_factory()
     try:
         yield db
     finally:
