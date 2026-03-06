@@ -655,27 +655,34 @@ ORM models in `src/qupboard_graphql/db/models.py`. The table hierarchy is:
 
 ```
 hardware_models
-└── qubits
+└── qubits                     (phase_comp_x_pi_2 inlined)
     ├── physical_channels      (channel_kind = 'qubit'; baseband + IQ-bias inlined)
     ├── pulse_channels         (channel_role discriminator; qubit-owned channels only)
-    │   channel_role values:
-    │     'drive'            – qubit drive channel
-    │     'second_state'     – second-state channel (ss_active, ss_delay)
-    │     'freq_shift'       – freq-shift channel   (fs_active, fs_amp, fs_phase)
-    │     'reset_qubit'      – qubit reset channel  (reset_delay)
+    │   │   channel_role values:
+    │   │     'drive'            – qubit drive channel
+    │   │     'second_state'     – second-state channel (ss_active, ss_delay)
+    │   │     'freq_shift'       – freq-shift channel   (fs_active, fs_amp, fs_phase)
+    │   │     'reset_qubit'      – qubit reset channel  (reset_delay)
+    │   │   pulse_role values in calibratable_pulses:
+    │   │     'drive'            – primary drive pulse
+    │   │     'drive_x_pi'       – X-π drive pulse
+    │   │     'second_state'     – second-state pulse
+    │   │     'reset_qubit'      – qubit reset pulse
     │   └── calibratable_pulses (owner_uuid -> pulse_channels.id + pulse_role discriminator)
     ├── cross_resonance_channels (role = 'cr' | 'crc')
-    │   └── calibratable_pulses  (pulse_role = 'cr')
-    ├── phase_comp_x_pi_2      (inlined column on qubits)
+    │   └── calibratable_pulses  (pulse_role = 'cr'; crc channels have no pulse)
     ├── zx_pi_4_comps          (one per CR pair)
     │   └── calibratable_pulses (pulse_role = 'zx_precomp' | 'zx_postcomp', nullable)
     └── resonators             (one-to-one with qubit)
         ├── physical_channels  (channel_kind = 'resonator'; baseband + IQ-bias inlined)
         └── pulse_channels     (channel_role discriminator; resonator-owned channels only)
-            channel_role values:
-              'measure'        – resonator measure channel
-              'acquire'        – resonator acquire channel (acq_delay/width/sync/use_weights)
-              'reset_resonator'– resonator reset channel   (reset_delay)
+            │   channel_role values:
+            │     'measure'        – resonator measure channel
+            │     'acquire'        – resonator acquire channel (acq_delay/width/sync/use_weights)
+            │     'reset_resonator'– resonator reset channel   (reset_delay)
+            │   pulse_role values in calibratable_pulses:
+            │     'measure'        – measure pulse
+            │     'reset_resonator'– resonator reset pulse
             └── calibratable_pulses (owner_uuid -> pulse_channels.id + pulse_role discriminator)
 ```
 
