@@ -1,6 +1,6 @@
 # This workflow runs on pull requests and provides test and coverage reporting for PRs.
 
-name: PR Actions
+name: PR Per-Commit Actions
 
 on:
   pull_request:
@@ -15,6 +15,7 @@ jobs:
   test:
     name: Test suite (matrix)
     runs-on: ubuntu-latest
+    if: always()
     strategy:
       fail-fast: false
       matrix:
