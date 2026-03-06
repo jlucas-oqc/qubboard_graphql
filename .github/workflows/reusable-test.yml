@@ -37,9 +37,6 @@ jobs:
       - name: Install dependencies
         run: poetry install --with dev
 
-      - name: Install pycobertura
-        run: pip install pycobertura
-
       - name: Run tests with coverage
         run: |
           poetry run pytest \
