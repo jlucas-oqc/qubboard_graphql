@@ -211,3 +211,272 @@ jobs:
               )
           PYEOF
           python /tmp/post_coverage.py
+
+      - name: Compute test failures and post PR comment
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          # Write a self-contained Python script to a temp file so we avoid
+          # all shell-quoting issues with multi-line strings.
+          cat > /tmp/post_test_failures.py << 'PYEOF'
+          import os
+          import subprocess
+          import textwrap
+          import xml.etree.ElementTree as ET
+
+          def run(cmd):
+              result = subprocess.run(cmd, capture_output=True, text=True)
+              return (result.stdout + result.stderr).strip()
+
+          def extract_failures(junit_file):
+              tree = ET.parse(junit_file)
+              root = tree.getroot()
+              failures = []
+
+              for testcase in root.iter("testcase"):
+                  failure = testcase.find("failure")
+                  if failure is not None:
+                      failures.append({
+                          "name": testcase.attrib.get("name"),
+                          "classname": testcase.attrib.get("classname"),
+                          "message": failure.attrib.get("message"),
+                          "details": failure.text.strip() if failure.text else ""
+                      })
+
+              return failures
+
+          failures = extract_failures("reports/junit.xml")
+
+          failure_summary = "\n".join(
+              f"- {f['classname']}.{f['name']}: {f['message']}\n{f['details']}"
+              for f in failures
+          )
+
+          body = textwrap.dedent(f"""\
+          ## 🧪 Test Failures Report
+
+          <details><summary><strong>Failed Tests</strong></summary>
+
+          ```
+          {failure_summary}
+          ```
+
+          </details>
+          """)
+
+          pr   = os.environ["PR_NUMBER"]
+          repo = os.environ["REPO"]
+
+          # Update an existing bot comment if present, otherwise create one.
+          r = subprocess.run(
+              ["gh", "pr", "comment", pr, "--repo", repo,
+               "--body", body, "--edit-last"],
+              capture_output=True
+          )
+          if r.returncode != 0:
+              subprocess.run(
+                  ["gh", "pr", "comment", pr, "--repo", repo, "--body", body],
+                  check=True
+              )
+          PYEOF
+          python /tmp/post_test_failures.py
+
+      - name: Compute coverage and test failures, post HTML table in PR comment
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          # Write a self-contained Python script to a temp file so we avoid
+          # all shell-quoting issues with multi-line strings.
+          cat > /tmp/post_html_report.py << 'PYEOF'
+          import os
+          import subprocess
+          import textwrap
+          import xml.etree.ElementTree as ET
+
+          def run(cmd):
+              result = subprocess.run(cmd, capture_output=True, text=True)
+              return (result.stdout + result.stderr).strip()
+
+          def extract_failures(junit_file):
+              tree = ET.parse(junit_file)
+              root = tree.getroot()
+              failures = []
+
+              for testcase in root.iter("testcase"):
+                  failure = testcase.find("failure")
+                  if failure is not None:
+                      failures.append({
+                          "name": testcase.attrib.get("name"),
+                          "classname": testcase.attrib.get("classname"),
+                          "message": failure.attrib.get("message"),
+                          "details": failure.text.strip() if failure.text else ""
+                      })
+
+              return failures
+
+          def generate_html_table(failures, coverage_summary, coverage_diff):
+              rows = "".join(
+                  f"<tr><td>{f['classname']}.{f['name']}</td><td>{f['message']}</td>"
+                  f"<td><details><summary>Details</summary><pre>{f['details']}</pre></details></td></tr>"
+                  for f in failures
+              )
+
+              html = textwrap.dedent(f"""
+              <h2>📊 Coverage and Test Report</h2>
+              <h3>Coverage Summary</h3>
+              <pre>{coverage_summary}</pre>
+              <h3>Coverage Delta</h3>
+              <pre>{coverage_diff}</pre>
+              <h3>Test Failures</h3>
+              <table border="1">
+                <thead>
+                  <tr>
+                    <th>Test Case</th>
+                    <th>Message</th>
+                    <th>Details</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows}
+                </tbody>
+              </table>
+              """)
+              return html
+
+          coverage_summary = run([
+              "python", "-m", "pycobertura", "show",
+              "reports/coverage.xml", "--format", "text"
+          ])
+
+          coverage_diff = run([
+              "python", "-m", "pycobertura", "diff",
+              "reports/coverage-base.xml", "reports/coverage.xml",
+              "--format", "text"
+          ])
+
+          failures = extract_failures("reports/junit.xml")
+
+          html_report = generate_html_table(failures, coverage_summary, coverage_diff)
+
+          pr   = os.environ["PR_NUMBER"]
+          repo = os.environ["REPO"]
+
+          # Update an existing bot comment if present, otherwise create one.
+          r = subprocess.run(
+              ["gh", "pr", "comment", pr, "--repo", repo,
+               "--body", html_report, "--edit-last"],
+              capture_output=True
+          )
+          if r.returncode != 0:
+              subprocess.run(
+                  ["gh", "pr", "comment", pr, "--repo", repo, "--body", html_report],
+                  check=True
+              )
+          PYEOF
+          python /tmp/post_html_report.py
+
+      - name: Publish coverage and test failures as a GitHub Check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Write a self-contained Python script to a temp file so we avoid
+          # all shell-quoting issues with multi-line strings.
+          cat > /tmp/post_check.py << 'PYEOF'
+          import os
+          import subprocess
+          import textwrap
+          import xml.etree.ElementTree as ET
+
+          def run(cmd):
+              result = subprocess.run(cmd, capture_output=True, text=True)
+              return (result.stdout + result.stderr).strip()
+
+          def extract_failures(junit_file):
+              tree = ET.parse(junit_file)
+              root = tree.getroot()
+              failures = []
+
+              for testcase in root.iter("testcase"):
+                  failure = testcase.find("failure")
+                  if failure is not None:
+                      failures.append({
+                          "name": testcase.attrib.get("name"),
+                          "classname": testcase.attrib.get("classname"),
+                          "message": failure.attrib.get("message"),
+                          "details": failure.text.strip() if failure.text else ""
+                      })
+
+              return failures
+
+          def generate_html_table(failures, coverage_summary, coverage_diff):
+              rows = "".join(
+                  f"<tr><td>{f['classname']}.{f['name']}</td><td>{f['message']}</td>"
+                  f"<td><details><summary>Details</summary><pre>{f['details']}</pre></details></td></tr>"
+                  for f in failures
+              )
+
+              html = textwrap.dedent(f"""
+              <h2>📊 Coverage and Test Report</h2>
+              <h3>Coverage Summary</h3>
+              <pre>{coverage_summary}</pre>
+              <h3>Coverage Delta</h3>
+              <pre>{coverage_diff}</pre>
+              <h3>Test Failures</h3>
+              <table border="1">
+                <thead>
+                  <tr>
+                    <th>Test Case</th>
+                    <th>Message</th>
+                    <th>Details</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows}
+                </tbody>
+              </table>
+              """)
+              return html
+
+          coverage_summary = run([
+              "python", "-m", "pycobertura", "show",
+              "reports/coverage.xml", "--format", "text"
+          ])
+
+          coverage_diff = run([
+              "python", "-m", "pycobertura", "diff",
+              "reports/coverage-base.xml", "reports/coverage.xml",
+              "--format", "text"
+          ])
+
+          failures = extract_failures("reports/junit.xml")
+
+          html_report = generate_html_table(failures, coverage_summary, coverage_diff)
+
+          check_payload = {
+              "name": "Coverage and Test Report",
+              "head_sha": os.environ["GITHUB_SHA"],
+              "status": "completed",
+              "conclusion": "success" if not failures else "failure",
+              "output": {
+                  "title": "Coverage and Test Report",
+                  "summary": "See the detailed report below.",
+                  "text": html_report
+              }
+          }
+
+          import json
+          payload = json.dumps(check_payload)
+
+          subprocess.run([
+              "curl", "-X", "POST",
+              "-H", "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}",
+              "-H", "Accept: application/vnd.github.v3+json",
+              "https://api.github.com/repos/${{ github.repository }}/check-runs",
+              "-d", payload
+          ], check=True)
+          PYEOF
+          python /tmp/post_check.py
