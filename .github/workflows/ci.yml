@@ -88,8 +88,26 @@ jobs:
           retention-days: 30
 
       - name: Publish test results
-        uses: EnricoMi/publish-test-results-action@v2
         if: always()
-        with:
-          files: reports/junit.xml
-          check_name: "Test Results (Python ${{ matrix.python-version }})"
+        run: |
+          echo "Publishing test results as a GitHub check..."
+          CHECK_NAME="Test Results (Python ${{ matrix.python-version }})"
+          TEST_RESULTS=$(cat reports/junit.xml | sed 's/"/\\"/g')
+          PAYLOAD=$(cat <<EOF
+          {
+            "name": "$CHECK_NAME",
+            "head_sha": "${{ github.sha }}",
+            "status": "completed",
+            "conclusion": "success",
+            "output": {
+              "title": "$CHECK_NAME",
+              "summary": "Test results for Python ${{ matrix.python-version }}",
+              "text": "\n\n$TEST_RESULTS"
+            }
+          }
+          EOF
+          )
+          curl -X POST -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+               -H "Accept: application/vnd.github.v3+json" \
+               https://api.github.com/repos/${{ github.repository }}/check-runs \
+               -d "$PAYLOAD"
