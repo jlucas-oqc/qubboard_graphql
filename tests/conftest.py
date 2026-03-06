@@ -58,10 +58,10 @@ def db_session(db_engine: Engine) -> Iterator[Session]:
 
 
 @pytest.fixture()
-def test_client(db_engine: Engine) -> Iterator[TestClient]:
+def app_client(db_engine: Engine) -> Iterator[TestClient]:
     """
-    TestClient that uses the production get_db dependency while tests
-    temporarily swap the session module engine to a per-test SQLite engine.
+    Fixture that creates a clean, new fastapi application using an initialised but empty
+    in-memory database and then yields a TestClient for it.
     """
     original_engine: Engine = session_module.engine
     session_module.engine = db_engine
@@ -93,9 +93,10 @@ def hardware_model(raw_calibration: str) -> HardwareModel:
 
 
 @pytest.fixture()
-def hardware_model_uuid(test_client: TestClient, raw_calibration: str, db_session: Session) -> str:
+def hardware_model_uuid(app_client: TestClient, raw_calibration: str, db_session: Session) -> str:
+    """Create a hardware model via REST and return its UUID string."""
     # Create the model and capture its UUID
-    post_response = test_client.post("/rest/logical-hardware", content=raw_calibration, headers=_JSON_HEADERS)
+    post_response = app_client.post("/rest/logical-hardware", content=raw_calibration, headers=_JSON_HEADERS)
     assert post_response.status_code == 201
     model_uuid = post_response.json()
 

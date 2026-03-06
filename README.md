@@ -256,6 +256,19 @@ curl -X POST http://localhost:8000/rest/logical-hardware/upload \
      -F "file=@path/to/calibration.json;type=application/json"
 ```
 
+**Upload multiple calibration files**
+
+If you want to upload the same sample multiple times for local testing, use the UUID-stripped
+fixture at `tests/data/calibration_pydantic_no_uuids.json`:
+
+```bash
+for i in $(seq 1 5); do
+  curl -sS -X POST http://localhost:8000/rest/logical-hardware/upload \
+       -F "file=@tests/data/calibration_pydantic_no_uuids.json;type=application/json"
+  echo
+done
+```
+
 ______________________________________________________________________
 
 ### GraphQL

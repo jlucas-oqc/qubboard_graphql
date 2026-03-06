@@ -1,9 +1,11 @@
+"""Integration tests for GraphQL query behavior and pagination."""
+
 from fastapi.testclient import TestClient
 
 _GRAPHQL_URL = "/graphql"
 
 
-def test_get_calibration(test_client: TestClient, hardware_model_uuid: str):
+def test_get_calibration(app_client: TestClient, hardware_model_uuid: str):
     """
     Test that we can retrieve a hardware model calibration by its UUID and that the returned data matches what we
     expect.
@@ -170,7 +172,7 @@ def test_get_calibration(test_client: TestClient, hardware_model_uuid: str):
         "variables": {"id": hardware_model_uuid},
     }
 
-    response = test_client.post(_GRAPHQL_URL, json=payload)
+    response = app_client.post(_GRAPHQL_URL, json=payload)
 
     assert response.status_code == 200
     data = response.json()
@@ -209,7 +211,7 @@ def test_get_calibration(test_client: TestClient, hardware_model_uuid: str):
     assert first_qubit["physicalChannel"]["channelKind"] == "qubit"
 
 
-def test_cross_resonance_channels_are_filtered_by_role(test_client: TestClient, hardware_model_uuid: str):
+def test_cross_resonance_channels_are_filtered_by_role(app_client: TestClient, hardware_model_uuid: str):
     """
     Regression test: querying crossResonanceCancellationChannels should only return items
     with role='crc', and crossResonanceChannels should only return items with role='cr'.
@@ -237,7 +239,7 @@ def test_cross_resonance_channels_are_filtered_by_role(test_client: TestClient, 
             }
         }
     """
-    response = test_client.post(_GRAPHQL_URL, json={"query": query, "variables": {"id": hardware_model_uuid}})
+    response = app_client.post(_GRAPHQL_URL, json={"query": query, "variables": {"id": hardware_model_uuid}})
     assert response.status_code == 200
     data = response.json()
     assert "errors" not in data, f"GraphQL errors: {data.get('errors')}"
@@ -260,7 +262,7 @@ def test_cross_resonance_channels_are_filtered_by_role(test_client: TestClient, 
         )
 
 
-def test_pulse_roles_are_correctly_filtered(test_client: TestClient, hardware_model_uuid: str):
+def test_pulse_roles_are_correctly_filtered(app_client: TestClient, hardware_model_uuid: str):
     """
     Regression test: pulse sub-fields on pulseChannels, crossResonanceChannels, and zxPi4Comps
     must return the pulse with the correct pulse_role and never be swapped.
@@ -308,7 +310,7 @@ def test_pulse_roles_are_correctly_filtered(test_client: TestClient, hardware_mo
             }
         }
     """
-    response = test_client.post(_GRAPHQL_URL, json={"query": query, "variables": {"id": hardware_model_uuid}})
+    response = app_client.post(_GRAPHQL_URL, json={"query": query, "variables": {"id": hardware_model_uuid}})
     assert response.status_code == 200
     data = response.json()
     assert "errors" not in data, f"GraphQL errors: {data.get('errors')}"
@@ -350,7 +352,7 @@ def test_pulse_roles_are_correctly_filtered(test_client: TestClient, hardware_mo
                 )
 
 
-def test_get_calibration_qubits_pagination(test_client: TestClient, hardware_model_uuid: str):
+def test_get_calibration_qubits_pagination(app_client: TestClient, hardware_model_uuid: str):
     """
     Test that the qubits field on getCalibration supports relay-style cursor pagination.
 
@@ -383,7 +385,7 @@ def test_get_calibration_qubits_pagination(test_client: TestClient, hardware_mod
     """
 
     # --- Page 1: first=1, no cursor ---
-    response = test_client.post(
+    response = app_client.post(
         _GRAPHQL_URL,
         json={"query": first_page_query, "variables": {"id": hardware_model_uuid, "first": 1, "after": None}},
     )
@@ -401,7 +403,7 @@ def test_get_calibration_qubits_pagination(test_client: TestClient, hardware_mod
     first_qubit_id = qubits["edges"][0]["node"]["id"]
 
     # --- Page 2: first=1, after=endCursor from page 1 ---
-    response = test_client.post(
+    response = app_client.post(
         _GRAPHQL_URL,
         json={"query": first_page_query, "variables": {"id": hardware_model_uuid, "first": 1, "after": end_cursor}},
     )
@@ -419,7 +421,7 @@ def test_get_calibration_qubits_pagination(test_client: TestClient, hardware_mod
         assert not qubits_page2["pageInfo"]["hasNextPage"]
 
     # --- first=0: the connection implementation treats 0 as "no limit" and returns all items ---
-    response = test_client.post(
+    response = app_client.post(
         _GRAPHQL_URL,
         json={"query": first_page_query, "variables": {"id": hardware_model_uuid, "first": 0, "after": None}},
     )
@@ -430,7 +432,7 @@ def test_get_calibration_qubits_pagination(test_client: TestClient, hardware_mod
     assert isinstance(data["data"]["getCalibration"]["qubits"]["edges"], list)
 
 
-def test_get_all_calibrations(test_client: TestClient, hardware_model_uuid: str):
+def test_get_all_calibrations(app_client: TestClient, hardware_model_uuid: str):
     """
     Test that get_all_calibrations returns a connection with edges/pageInfo,
     that each edge contains an id and calibrationId, and that the seeded
@@ -455,7 +457,7 @@ def test_get_all_calibrations(test_client: TestClient, hardware_model_uuid: str)
             }
         }
     """
-    response = test_client.post(_GRAPHQL_URL, json={"query": query})
+    response = app_client.post(_GRAPHQL_URL, json={"query": query})
 
     assert response.status_code == 200
     data = response.json()
@@ -480,7 +482,7 @@ def test_get_all_calibrations(test_client: TestClient, hardware_model_uuid: str)
     assert page_info["endCursor"] is not None
 
 
-def test_get_all_calibrations_pagination(test_client: TestClient, hardware_model_uuid: str):
+def test_get_all_calibrations_pagination(app_client: TestClient, hardware_model_uuid: str):
     """
     Test that get_all_calibrations supports relay-style cursor pagination.
 
@@ -503,7 +505,7 @@ def test_get_all_calibrations_pagination(test_client: TestClient, hardware_model
     """
 
     # first=1, no cursor – should return exactly the first record
-    response = test_client.post(_GRAPHQL_URL, json={"query": query, "variables": {"first": 1, "after": None}})
+    response = app_client.post(_GRAPHQL_URL, json={"query": query, "variables": {"first": 1, "after": None}})
     assert response.status_code == 200
     data = response.json()
     assert "errors" not in data, f"GraphQL errors: {data.get('errors')}"
@@ -515,7 +517,7 @@ def test_get_all_calibrations_pagination(test_client: TestClient, hardware_model
     first_id = edges[0]["node"]["id"]
 
     # first=1, after=endCursor – should be the next record or empty
-    response = test_client.post(_GRAPHQL_URL, json={"query": query, "variables": {"first": 1, "after": end_cursor}})
+    response = app_client.post(_GRAPHQL_URL, json={"query": query, "variables": {"first": 1, "after": end_cursor}})
     assert response.status_code == 200
     data = response.json()
     assert "errors" not in data, f"GraphQL errors: {data.get('errors')}"
@@ -526,7 +528,7 @@ def test_get_all_calibrations_pagination(test_client: TestClient, hardware_model
         assert not page2["pageInfo"]["hasNextPage"]
 
 
-def test_get_all_hardware_model_ids(test_client: TestClient, hardware_model_uuid: str):
+def test_get_all_hardware_model_ids(app_client: TestClient, hardware_model_uuid: str):
     """
     Test that we can retrieve a list of all hardware model UUIDs and that it contains the UUID of the model we created.
     """
@@ -535,7 +537,7 @@ def test_get_all_hardware_model_ids(test_client: TestClient, hardware_model_uuid
             getAllHardwareModelIds
         }
     """
-    response = test_client.post(_GRAPHQL_URL, json={"query": query})
+    response = app_client.post(_GRAPHQL_URL, json={"query": query})
 
     assert response.status_code == 200
     data = response.json()
