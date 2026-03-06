@@ -1,4 +1,6 @@
-name: PR Coverage
+# This workflow runs on pull requests and provides test and coverage reporting for PRs.
+
+name: PR Actions
 
 on:
   pull_request:
