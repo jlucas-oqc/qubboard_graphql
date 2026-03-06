@@ -31,10 +31,9 @@ def pycobertura_markdown(coverage_xml):
 def main():
     report_dir = Path("reports")
     junit_files = sorted(report_dir.glob("junit-*.xml"))
-    print("# Test Results and Coverage\n")
     for junit in junit_files:
         pyver = junit.stem.split("-")[-1]
-        print(f"## Python {pyver}\n")
+        print(f"# Test Summary for {pyver}\n")
         summary = parse_junit(junit)
         print(f"**Tests:** {summary['tests']}  ")
         print(f"**Failures:** {summary['failures']}  ")
