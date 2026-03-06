@@ -595,6 +595,8 @@ flowchart TD
 
     GQL -->|"reads directly<br/>(strawberry-sqlalchemy-mapper)"| ORM
     ORM <--> DB
+
+    style fastAPI fill:#ddeeff,stroke:#336699
 ```
 
 ### Request flow
