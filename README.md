@@ -572,7 +572,7 @@ flowchart TD
             GQL["graphql.py + graphql_types.py"]
             REST["rest.py"]
         end
-        subgraph pydantic ["Pydantic schema / ORM mappers (REST only)"]
+        subgraph pydantic ["Legacy Pydantic schema"]
             HM["hardware_model.py<br/>(Pydantic models)"]
             TO["mapper_to_orm.py<br/>Pydantic → ORM"]
             FROM["mapper_from_orm.py<br/>ORM → Pydantic"]
