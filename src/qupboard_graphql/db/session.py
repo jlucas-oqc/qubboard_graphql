@@ -1,14 +1,15 @@
 """
 SQLAlchemy engine and session management for qupboard_graphql.
 
-Provides a lazily-initialised shared :class:`~sqlalchemy.engine.Engine` and a
+Provides a shared module-level :class:`~sqlalchemy.engine.Engine` and a
 FastAPI-compatible generator dependency that yields a per-request
 :class:`~sqlalchemy.orm.Session`.
 """
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
 from typing import Generator
+
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session, sessionmaker
 
 from qupboard_graphql.config import settings
 
@@ -22,7 +23,7 @@ def get_db() -> Generator[Session, None, None]:
     afterwards, even if an exception is raised.
 
     Yields:
-        An active :class:`~sqlalchemy.orm.Session` bound to the shared engine.
+        An active :class:`~sqlalchemy.orm.Session` bound to the module engine.
     """
     SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
     db: Session = SessionLocal()

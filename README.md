@@ -102,9 +102,18 @@ The server starts on `http://0.0.0.0:8000`. The following endpoints are then ava
 
 ### Running the tests
 
-The test suite uses [pytest](https://pytest.org/) with an in-memory SQLite database so no prior
-database setup is required. Each test runs inside a transaction that is rolled back on completion,
-keeping tests fully isolated without recreating the schema between runs.
+The test suite uses [pytest](https://pytest.org/) with an in-memory SQLite database, so no prior
+database setup is required.
+
+For each test function, `tests/conftest.py`:
+
+- creates a fresh SQLite in-memory engine,
+- creates the schema with `Base.metadata.create_all(...)`,
+- temporarily swaps `qupboard_graphql.db.session.engine` to that test engine,
+- runs requests through the **real** `get_db` dependency (no FastAPI `dependency_overrides`),
+- drops the schema and disposes the engine during teardown.
+
+This keeps tests isolated while exercising the same dependency path used in production.
 
 Run all tests:
 
