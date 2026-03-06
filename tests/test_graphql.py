@@ -18,7 +18,7 @@ def test_get_calibration(test_client: TestClient, hardware_model_uuid: str):
                 qubits {
                     edges {
                         node {
-                            uuid
+                            id
                             qubitKey
                             meanZMapArgs
                             discriminatorReal
@@ -26,9 +26,9 @@ def test_get_calibration(test_client: TestClient, hardware_model_uuid: str):
                             directXPi
                             phaseCompXPi2
                             resonator {
-                                uuid
+                                id
                                 physicalChannel {
-                                    uuid
+                                    id
                                     channelKind
                                     nameIndex
                                     blockSize
@@ -43,7 +43,7 @@ def test_get_calibration(test_client: TestClient, hardware_model_uuid: str):
                                 pulseChannels {
                                     edges {
                                         node {
-                                            uuid
+                                            id
                                             channelRole
                                             frequency
                                         }
@@ -51,7 +51,7 @@ def test_get_calibration(test_client: TestClient, hardware_model_uuid: str):
                                 }
                             }
                             physicalChannel {
-                                uuid
+                                id
                                 channelKind
                                 nameIndex
                                 blockSize
@@ -66,7 +66,7 @@ def test_get_calibration(test_client: TestClient, hardware_model_uuid: str):
                             pulseChannels {
                                 edges {
                                     node {
-                                        uuid
+                                        id
                                         channelRole
                                         frequency
                                         imbalance
@@ -105,7 +105,7 @@ def test_get_calibration(test_client: TestClient, hardware_model_uuid: str):
                             crossResonanceChannels {
                                 edges {
                                     node {
-                                        uuid
+                                        id
                                         role
                                         auxiliaryQubit
                                         frequency
@@ -124,7 +124,7 @@ def test_get_calibration(test_client: TestClient, hardware_model_uuid: str):
                             crossResonanceCancellationChannels {
                                 edges {
                                     node {
-                                        uuid
+                                        id
                                         role
                                         auxiliaryQubit
                                         frequency
@@ -138,7 +138,7 @@ def test_get_calibration(test_client: TestClient, hardware_model_uuid: str):
                             zxPi4Comps {
                                 edges {
                                     node {
-                                        uuid
+                                        id
                                         auxiliaryQubit
                                         phaseCompTargetZxPi4
                                         pulseZxPi4TargetRotaryAmp
@@ -198,7 +198,7 @@ def test_get_calibration(test_client: TestClient, hardware_model_uuid: str):
 
     assert first_qubit["phaseCompXPi2"] is not None
     assert first_qubit["resonator"] is not None
-    assert first_qubit["resonator"]["uuid"] is not None
+    assert first_qubit["resonator"]["id"] is not None
     assert first_qubit["resonator"]["physicalChannel"] is not None
     res_pc_kinds = {n["node"]["channelRole"] for n in first_qubit["resonator"]["pulseChannels"]["edges"]}
     assert res_pc_kinds == {"measure", "acquire", "reset_resonator"}
@@ -226,10 +226,10 @@ def test_cross_resonance_channels_are_filtered_by_role(test_client: TestClient, 
                         node {
                             qubitKey
                             crossResonanceChannels {
-                                edges { node { uuid role auxiliaryQubit } }
+                                edges { node { id role auxiliaryQubit } }
                             }
                             crossResonanceCancellationChannels {
-                                edges { node { uuid role auxiliaryQubit } }
+                                edges { node { id role auxiliaryQubit } }
                             }
                         }
                     }
@@ -296,7 +296,7 @@ def test_pulse_roles_are_correctly_filtered(test_client: TestClient, hardware_mo
                             zxPi4Comps {
                                 edges {
                                     node {
-                                        uuid
+                                        id
                                         pulsePrecomp { id pulseRole }
                                         pulsePostcomp { id pulseRole }
                                     }
@@ -367,7 +367,7 @@ def test_get_calibration_qubits_pagination(test_client: TestClient, hardware_mod
                     edges {
                         cursor
                         node {
-                            uuid
+                            id
                             qubitKey
                         }
                     }
@@ -398,7 +398,7 @@ def test_get_calibration_qubits_pagination(test_client: TestClient, hardware_mod
     end_cursor = page_info["endCursor"]
     assert end_cursor is not None, "endCursor should be set when results are returned"
 
-    first_qubit_uuid = qubits["edges"][0]["node"]["uuid"]
+    first_qubit_id = qubits["edges"][0]["node"]["id"]
 
     # --- Page 2: first=1, after=endCursor from page 1 ---
     response = test_client.post(
@@ -412,8 +412,8 @@ def test_get_calibration_qubits_pagination(test_client: TestClient, hardware_mod
     qubits_page2 = data["data"]["getCalibration"]["qubits"]
     if qubits_page2["edges"]:
         # More than one qubit in the fixture – second page must be a different qubit
-        second_qubit_uuid = qubits_page2["edges"][0]["node"]["uuid"]
-        assert second_qubit_uuid != first_qubit_uuid, "Page 2 should return a different qubit"
+        second_qubit_id = qubits_page2["edges"][0]["node"]["id"]
+        assert second_qubit_id != first_qubit_id, "Page 2 should return a different qubit"
     else:
         # Only one qubit in the fixture – page 2 is correctly empty
         assert not qubits_page2["pageInfo"]["hasNextPage"]

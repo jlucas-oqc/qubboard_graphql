@@ -79,7 +79,7 @@ def _physical_channel_from_orm(orm: PhysicalChannelORM) -> PhysicalChannel:
     from qupboard_graphql.schemas.hardware_model import BaseBand, IQVoltageBias
 
     return PhysicalChannel(
-        uuid=orm.uuid,
+        uuid=orm.id,
         name_index=orm.name_index,
         block_size=orm.block_size,
         default_amplitude=orm.default_amplitude,
@@ -108,7 +108,7 @@ def _reset_pulse_channel_from_orm(orm: PulseChannelORM) -> ResetPulseChannel:
         :class:`~qupboard_graphql.schemas.hardware_model.ResetPulseChannel`.
     """
     return ResetPulseChannel(
-        uuid=orm.uuid,
+        uuid=orm.id,
         frequency=_none_to_nan(orm.frequency),
         imbalance=orm.imbalance,
         phase_iq_offset=orm.phase_iq_offset,
@@ -150,7 +150,7 @@ def _qubit_from_orm(orm: QubitORM) -> tuple[str, Qubit]:
 
     cross_resonance = {
         cr.auxiliary_qubit: CrossResonancePulseChannel(
-            uuid=cr.uuid,
+            uuid=cr.id,
             auxiliary_qubit=cr.auxiliary_qubit,
             frequency=_none_to_nan(cr.frequency),
             imbalance=cr.imbalance,
@@ -162,7 +162,7 @@ def _qubit_from_orm(orm: QubitORM) -> tuple[str, Qubit]:
     }
     cross_resonance_cancellation = {
         crc.auxiliary_qubit: CrossResonanceCancellationPulseChannel(
-            uuid=crc.uuid,
+            uuid=crc.id,
             auxiliary_qubit=crc.auxiliary_qubit,
             frequency=_none_to_nan(crc.frequency),
             imbalance=crc.imbalance,
@@ -174,7 +174,7 @@ def _qubit_from_orm(orm: QubitORM) -> tuple[str, Qubit]:
 
     pulse_channels = QubitPulseChannels(
         drive=DrivePulseChannel(
-            uuid=drive.uuid,
+            uuid=drive.id,
             frequency=_none_to_nan(drive.frequency),
             imbalance=drive.imbalance,
             phase_iq_offset=drive.phase_iq_offset,
@@ -183,7 +183,7 @@ def _qubit_from_orm(orm: QubitORM) -> tuple[str, Qubit]:
             pulse_x_pi=_pulse_from_orm(drive.pulse_x_pi) if drive.pulse_x_pi else None,
         ),
         second_state=SecondStatePulseChannel(
-            uuid=ss.uuid,
+            uuid=ss.id,
             frequency=_none_to_nan(ss.frequency),
             imbalance=ss.imbalance,
             phase_iq_offset=ss.phase_iq_offset,
@@ -193,7 +193,7 @@ def _qubit_from_orm(orm: QubitORM) -> tuple[str, Qubit]:
             pulse=_pulse_from_orm(ss.pulse) if ss.pulse else None,
         ),
         freq_shift=FreqShiftPulseChannel(
-            uuid=fs.uuid,
+            uuid=fs.id,
             frequency=_none_to_nan(fs.frequency),
             imbalance=fs.imbalance,
             phase_iq_offset=fs.phase_iq_offset,
@@ -208,11 +208,11 @@ def _qubit_from_orm(orm: QubitORM) -> tuple[str, Qubit]:
     )
 
     resonator = Resonator(
-        uuid=orm.resonator.uuid,
+        uuid=orm.resonator.id,
         physical_channel=res_pc,
         pulse_channels=ResonatorPulseChannels(
             measure=MeasurePulseChannel(
-                uuid=mpc.uuid,
+                uuid=mpc.id,
                 frequency=_none_to_nan(mpc.frequency),
                 imbalance=mpc.imbalance,
                 phase_iq_offset=mpc.phase_iq_offset,
@@ -220,7 +220,7 @@ def _qubit_from_orm(orm: QubitORM) -> tuple[str, Qubit]:
                 pulse=_pulse_from_orm(mpc.pulse),
             ),
             acquire=AcquirePulseChannel(
-                uuid=apc.uuid,
+                uuid=apc.id,
                 frequency=_none_to_nan(apc.frequency),
                 imbalance=apc.imbalance,
                 phase_iq_offset=apc.phase_iq_offset,
@@ -251,7 +251,7 @@ def _qubit_from_orm(orm: QubitORM) -> tuple[str, Qubit]:
     }
 
     return orm.qubit_key, Qubit(
-        uuid=orm.uuid,
+        uuid=orm.id,
         physical_channel=qubit_pc,
         pulse_channels=pulse_channels,
         resonator=resonator,
