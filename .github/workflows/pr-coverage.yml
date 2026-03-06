@@ -10,64 +10,73 @@ permissions:
   checks: write
 
 jobs:
-  # ── Run tests on the PR branch ─────────────────────────────────────────────
-  test-pr:
-    name: Tests – PR branch
-    uses: ./.github/workflows/reusable-test.yml
-    with:
-      python-version: "3.12"
-
-    steps:
-      - name: Publish test results
-        uses: EnricoMi/publish-unit-test-result-action@v2
-        with:
-          files: reports/junit.xml
-          check_name: Test Results (PR branch)
-          comment_title: Test Results (PR branch)
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload coverage report to Codecov
-        uses: codecov/codecov-action@v3
-        with:
-          files: reports/coverage.xml
-          flags: pr-branch
-          name: Coverage Report (PR branch)
-          fail_ci_if_error: true
-
-  # ── Run tests on the base branch ───────────────────────────────────────────
-  test-base:
-    name: Tests – base branch
-    uses: ./.github/workflows/reusable-test.yml
-    with:
-      python-version: "3.12"
-
-    steps:
-      - name: Publish test results
-        uses: EnricoMi/publish-unit-test-result-action@v2
-        with:
-          files: reports/junit.xml
-          check_name: Test Results (Base branch)
-          comment_title: Test Results (Base branch)
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload coverage report to Codecov
-        uses: codecov/codecov-action@v3
-        with:
-          files: reports/coverage.xml
-          flags: base-branch
-          name: Coverage Report (Base branch)
-          fail_ci_if_error: true
-
-  # ── Post coverage delta comment on the PR ──────────────────────────────────
-  coverage-comment:
-    name: Post coverage delta comment
+  test:
+    name: Test suite (matrix)
     runs-on: ubuntu-latest
-    needs: [test-pr, test-base]
-
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12", "3.13"]
     steps:
-      - name: Post coverage delta
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - uses: snok/install-poetry@v1
+        with:
+          virtualenvs-in-project: true
+      - uses: actions/cache@v4
+        with:
+          path: .venv
+          key: venv-${{ runner.os }}-py${{ matrix.python-version }}-${{ hashFiles('poetry.lock') }}
+          restore-keys: venv-${{ runner.os }}-py${{ matrix.python-version }}-
+      - name: Install dependencies
+        run: poetry install --with dev
+      - name: Run tests with coverage
+        run: |
+          poetry run pytest \
+            --tb=short \
+            --junitxml=reports/junit-${{ matrix.python-version }}.xml \
+            --cov=src/qupboard_graphql \
+            --cov-report=xml:reports/coverage-${{ matrix.python-version }}.xml \
+            --cov-report=term-missing
+      - name: Upload JUnit XML
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-${{ matrix.python-version }}
+          path: reports/junit-${{ matrix.python-version }}.xml
+      - name: Upload coverage XML
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ matrix.python-version }}
+          path: reports/coverage-${{ matrix.python-version }}.xml
+
+  report:
+    name: Aggregate & Report
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download all JUnit XMLs
+        uses: actions/download-artifact@v4
+        with:
+          pattern: junit-*
+          path: all-junit
+      - name: Download all coverage XMLs
+        uses: actions/download-artifact@v4
+        with:
+          pattern: coverage-*
+          path: all-cov
+      - name: Publish test results (all Python versions)
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        with:
+          files: all-junit/**/*.xml
+          check_name: Test Results (matrix)
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload coverage to Codecov (all Python versions)
         uses: codecov/codecov-action@v3
         with:
-          flags: pr-branch,base-branch
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          files: all-cov/**/*.xml
+          flags: matrix
+          name: Coverage Report (matrix)
           fail_ci_if_error: true
