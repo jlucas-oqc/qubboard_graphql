@@ -16,7 +16,7 @@ dependencies = [
     "pydantic (>=2.0.0,<3.0.0)",
     "pydantic-settings (>=2.13.1,<3.0.0)",
     "strawberry-sqlalchemy-mapper (>=0.8.0,<0.9.0)",
-    "pycobertura (>=4.1.0,<5.0.0)"
+    "pycobertura (>=4.1.0,<5.0.0)",
 ]
 [dependency-groups]
 dev = [
@@ -30,6 +30,7 @@ dev = [
     "mkdocs-material (>=9.7.4,<10.0.0)",
     "mkdocstrings[python] (>=1.0.3,<2.0.0)",
     "junitparser (>=4.0.2,<5.0.0)",
+    "genbadge (>=1.1.3,<2.0.0)",
 ]
 [project.scripts]
 qupboard = "qupboard_graphql.main:main"
@@ -51,3 +52,9 @@ omit = ["src/qupboard_graphql/main.py"]
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.group.dev.dependencies]
+mkdocs = "^1.5.3"
+mkdocs-material = "^9.5.18"
+mkdocstrings = "^0.24.0"
+mkdocstrings-python = "^1.8.0"
