@@ -39,16 +39,14 @@ jobs:
             --cov=src/qupboard_graphql \
             --cov-report=xml:reports/coverage-${{ matrix.python-version }}.xml \
             --cov-report=term-missing
-      - name: Upload JUnit XML
+      - name: Upload test reports (junit + coverage)
         uses: actions/upload-artifact@v4
         with:
-          name: junit-${{ matrix.python-version }}
-          path: reports/junit-${{ matrix.python-version }}.xml
-      - name: Upload coverage XML
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-${{ matrix.python-version }}
-          path: reports/coverage-${{ matrix.python-version }}.xml
+          name: test-reports-${{ matrix.python-version }}
+          path: |
+            reports/junit-${{ matrix.python-version }}.xml
+            reports/coverage-${{ matrix.python-version }}.xml
+        if: always()
 
   build-badges:
     name: Generate and publish badges
@@ -68,29 +66,22 @@ jobs:
           virtualenvs-in-project: true
       - name: Install dependencies
         run: poetry install --with dev
-      - name: Download test artifacts (JUnit & coverage for 3.12)
+      - name: Download test reports (3.12) into reports/
         uses: actions/download-artifact@v4
         with:
-          name: junit-3.12
-          path: .
-      - name: Download coverage artifact (3.12)
-        uses: actions/download-artifact@v4
-        with:
-          name: coverage-3.12
-          path: .
+          name: test-reports-3.12
+          path: reports
       - name: Show reports directory
         run: |
           echo "Listing reports/ and top-level files:"
           ls -la reports || true
           ls -la || true
-      - name: Generate test-results badge
+      - name: Generate badges
         run: |
+          mkdir -p reports/badges
           poetry run genbadge tests \
             -i reports/junit-3.12.xml \
             -o reports/badges/tests.svg
-        if: always()
-      - name: Generate coverage badge
-        run: |
           poetry run genbadge coverage \
             -i reports/coverage-3.12.xml \
             -o reports/badges/coverage.svg
@@ -98,8 +89,16 @@ jobs:
       - name: Publish badges to the gh-pages branch
         run: |
           mkdir -p gh-pages/badges
-          cp reports/badges/tests.svg    gh-pages/badges/tests.svg
-          cp reports/badges/coverage.svg gh-pages/badges/coverage.svg
+          # copy any generated badges (if none exist, skip)
+          shopt -s nullglob
+          copied=0
+          for f in reports/badges/*.svg; do
+            cp "$f" gh-pages/badges/ && copied=1 || true
+          done
+          if [ "$copied" -eq 0 ]; then
+            echo "No badges to publish; skipping commit."
+            exit 0
+          fi
           cd gh-pages
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git config user.name  "github-actions[bot]"
