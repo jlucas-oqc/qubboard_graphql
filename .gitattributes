@@ -1,1 +1,5 @@
 tests/data/calibration.json filter=lfs diff=lfs merge=lfs -text
+# Track all files under the javascripts directory (recursive)
+site/assets/javascripts/** filter=lfs diff=lfs merge=lfs -text
+# Also track the singular 'javascript' path if present
+site/assets/javascript/** filter=lfs diff=lfs merge=lfs -text
