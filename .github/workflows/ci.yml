@@ -1,13 +1,15 @@
-# This workflow runs on pull requests and provides test and coverage reporting for PRs.
-
-name: PR Per-Commit Actions
+# Unified CI workflow for all commits and PRs
+name: CI Actions
 
 on:
+  push:
+    branches: [main]
   pull_request:
     branches: ["**"]
+  workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   pull-requests: write
   checks: write
 
@@ -43,30 +45,26 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ inputs.python-version }}
-
+          python-version: ${{ matrix.python-version }}
       - name: Install Poetry
         uses: snok/install-poetry@v1
         with:
           virtualenvs-in-project: true
-
       - name: Cache virtual environment
         uses: actions/cache@v4
         with:
           path: .venv
-          key: venv-${{ runner.os }}-py${{ inputs.python-version }}-${{ hashFiles('poetry.lock') }}
+          key: venv-${{ runner.os }}-py${{ matrix.python-version }}-${{ hashFiles('poetry.lock') }}
           restore-keys: |
-            venv-${{ runner.os }}-py${{ inputs.python-version }}-
-
+            venv-${{ runner.os }}-py${{ matrix.python-version }}-
       - name: Install dependencies
         run: poetry install --with dev
-
       - name: Download coverage artifacts
         uses: actions/download-artifact@v4
         with:
           name: coverage-${{ matrix.python-version }}
           path: reports
-      - name: Generate PR summary (tests & coverage)
+      - name: Generate summary (tests & coverage)
         run: |
           poetry run python scripts/coverage_summary.py > summary.md
           cat summary.md >> "$GITHUB_STEP_SUMMARY"
