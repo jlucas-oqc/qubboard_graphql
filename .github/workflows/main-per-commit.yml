@@ -68,6 +68,21 @@ jobs:
           virtualenvs-in-project: true
       - name: Install dependencies
         run: poetry install --with dev
+      - name: Download test artifacts (JUnit & coverage for 3.12)
+        uses: actions/download-artifact@v4
+        with:
+          name: junit-3.12
+          path: .
+      - name: Download coverage artifact (3.12)
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-3.12
+          path: .
+      - name: Show reports directory
+        run: |
+          echo "Listing reports/ and top-level files:"
+          ls -la reports || true
+          ls -la || true
       - name: Generate test-results badge
         run: |
           poetry run genbadge tests \
