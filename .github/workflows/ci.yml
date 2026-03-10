@@ -94,7 +94,7 @@ jobs:
         uses: peter-evans/create-or-update-comment@v4
         with:
           issue-number: ${{ github.event.pull_request.number }}
-          body-file: summary.md
+          body-path: summary.md
         if: github.event_name == 'pull_request'
 
       - name: Publish Unit Test Results
