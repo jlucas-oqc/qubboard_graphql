@@ -23,6 +23,8 @@ jobs:
       matrix:
         python-version: ["3.11", "3.12", "3.13", "3.14"]
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
       - name: Setup Python and Poetry
         uses: ./.github/actions/setup-python-poetry
         with:
@@ -63,6 +65,8 @@ jobs:
       matrix:
         python-version: ["3.11", "3.12", "3.13", "3.14"]
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
       - name: Setup Python and Poetry
         uses: ./.github/actions/setup-python-poetry
         with:
