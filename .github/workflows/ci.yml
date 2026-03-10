@@ -122,9 +122,6 @@ jobs:
         with:
           python-version: ${{ env.DEFAULT_PYTHON_VERSION }}
 
-      - name: Install coverage-badge
-        run: poetry run pip install coverage-badge
-
       - name: Generate coverage badge
         run: poetry run coverage-badge -o gh-pages/badges/coverage.svg -f -s reports/coverage-${{ env.DEFAULT_PYTHON_VERSION }}.xml
 

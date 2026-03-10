@@ -398,6 +398,22 @@ tomli = {version = "*", optional = true, markers = "python_full_version <= \"3.1
 toml = ["tomli ; python_full_version <= \"3.11.0a6\""]
 
 [[package]]
+name = "coverage-badge"
+version = "1.1.2"
+description = "Generate coverage badges for Coverage.py."
+optional = false
+python-versions = "*"
+groups = ["dev"]
+files = [
+    {file = "coverage_badge-1.1.2-py2.py3-none-any.whl", hash = "sha256:d8413ce51c91043a1692b943616b450868cbeeb0ea6a0c54a32f8318c9c96ff7"},
+    {file = "coverage_badge-1.1.2.tar.gz", hash = "sha256:fe7ed58a3b72dad85a553b64a99e963dea3847dcd0b8ddd2b38a00333618642c"},
+]
+
+[package.dependencies]
+coverage = "*"
+setuptools = "*"
+
+[[package]]
 name = "cross-web"
 version = "0.4.1"
 description = "A library for working with web frameworks"
@@ -2696,4 +2712,4 @@ files = [
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<3.15"
-content-hash = "6e13d2da413483ea2f258349efd27b60864f8101f236b4a0f835475c0b91db17"
+content-hash = "663a7e27701b72edf6d4bb72203bf2186d067cfe31fb6b639ce16084ad66ec01"
