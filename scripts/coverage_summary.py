@@ -32,7 +32,7 @@ def main():
     print("# Code Coverage\n")
     report_dir = Path("reports")
     junit_files = sorted(report_dir.glob("junit-*.xml"))
-    for junit in junit_files:
+    for junit in junit_files[-1:]:  # Only process the most recent report
         pyver = junit.stem.split("-")[-1]
         print(f"## Python-{pyver}\n")
         # print("## Coverage \n")
