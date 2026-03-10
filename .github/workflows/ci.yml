@@ -104,19 +104,13 @@ jobs:
         with:
           files: reports/junit-*.xml
 
-      - name: Build documentation
+      - name: Update badges
         if: github.ref == 'refs/heads/main'
         run: |
-          poetry run mkdocs build
-
-      - name: Update pages
-        if: github.ref == 'refs/heads/main'
-        run: |
-          mkdir -p gh-pages/docs gh-pages/badges
-          cp -r site/* gh-pages/docs/
+          mkdir -p gh-pages/badges
           cp reports/coverage-${{ env.DEFAULT_PYTHON_VERSION }}.svg gh-pages/badges/coverage.svg
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add gh-pages
-          git commit -m "Update documentation [skip ci]" || echo "No changes to commit"
+          git commit -m "Update badges [skip ci]" || echo "No changes to commit"
           git push
