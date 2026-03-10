@@ -41,6 +41,7 @@ jobs:
             --cov=src/qupboard_graphql \
             --cov-report=term-missing \
             --cov-report=xml:reports/coverage-${{ matrix.python-version }}.xml
+          poetry run coverage-badge -o reports/coverage-${{ matrix.python-version }}.svg
 
       - name: Upload reports directory
         if: always()
@@ -50,10 +51,6 @@ jobs:
           path: reports/
           retention-days: 30
 
-      - name: Generate coverage badge
-        if: matrix.python-version == env.PYTHON_COVERAGE_VERSION
-        run: |
-          poetry run coverage-badge -o reports/coverage-${{ matrix.python-version }}.svg
 
   aggregate-and-publish:
     name: Aggregate and Publish Results
